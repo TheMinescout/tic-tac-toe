@@ -1,0 +1,420 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Tic-Tac-Toe (3x3x3) Multiplayer</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #1a1a2e;
+            --accent: #e94560;
+            --secondary: #16213e;
+            --text: #ffffff;
+            --highlight: #0f3460;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+        }
+
+        h1 { margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
+        
+        /* Connection Panel */
+        #connection-panel {
+            background: var(--secondary);
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+            margin-bottom: 20px;
+            text-align: center;
+            width: 100%;
+            max-width: 600px;
+        }
+
+        input {
+            padding: 10px;
+            border-radius: 4px;
+            border: none;
+            width: 200px;
+            margin: 5px;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: var(--accent);
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.1s;
+        }
+
+        button:hover { transform: scale(1.05); }
+        button:disabled { background-color: grey; cursor: not-allowed; }
+
+        .status { margin-top: 10px; font-style: italic; color: #aaa; }
+        .code-display { font-family: monospace; font-size: 1.2em; background: #000; padding: 5px 10px; border-radius: 4px; user-select: all;}
+
+        /* Game Board Area */
+        #game-container {
+            display: none; /* Hidden until connected */
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #turn-indicator {
+            font-size: 1.5em;
+            margin-bottom: 20px;
+            font-weight: bold;
+        }
+
+        .boards-wrapper {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr); /* 3 Columns for 3 Levels */
+            gap: 30px;
+        }
+
+        @media (max-width: 800px) {
+            .boards-wrapper { grid-template-columns: repeat(1, 1fr); }
+        }
+
+        .level-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .level-label { margin-bottom: 10px; color: var(--accent); }
+
+        .grid {
+            display: grid;
+            /* 3x3 Grid Sizing */
+            grid-template-columns: repeat(3, 60px); 
+            grid-template-rows: repeat(3, 60px);
+            gap: 5px;
+            background-color: var(--highlight);
+            padding: 5px;
+            border-radius: 4px;
+            transform: rotateX(10deg);
+            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+        }
+
+        .cell {
+            width: 60px;
+            height: 60px;
+            background-color: var(--secondary);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 28px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .cell:hover { background-color: #2a3b55; }
+        .cell.taken { cursor: default; }
+        .cell.x { color: #4facfe; } /* Blue for X */
+        .cell.o { color: #f093fb; } /* Pink for O */
+        .cell.win { background-color: #2ecc71; color: white; }
+
+        #restart-btn { display: none; margin-top: 20px; background-color: #2ecc71;}
+
+    </style>
+</head>
+<body>
+
+    <h1>3D Tic-Tac-Toe (3x3x3)</h1>
+
+    <div id="connection-panel">
+        <div id="menu-start">
+            <h3>Multiplayer Setup</h3>
+            <button onclick="hostGame()">Host Game</button>
+            <span style="margin: 0 10px;">OR</span>
+            <input type="text" id="join-code-input" placeholder="Enter Host Code">
+            <button onclick="joinGame()">Join Game</button>
+        </div>
+
+        <div id="menu-host-waiting" style="display:none;">
+            <p>Share this code with your friend:</p>
+            <div class="code-display" id="my-code">Generating...</div>
+            <p class="status">Waiting for opponent to join...</p>
+        </div>
+
+        <div id="menu-status" style="display:none;">
+            <p class="status" id="connection-status">Connecting...</p>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <div id="turn-indicator">Your Turn (X)</div>
+        
+        <div class="boards-wrapper">
+            <div class="level-container">
+                <div class="level-label">Level 1 (Bottom)</div>
+                <div class="grid" id="grid-0"></div>
+            </div>
+            <div class="level-container">
+                <div class="level-label">Level 2 (Middle)</div>
+                <div class="grid" id="grid-1"></div>
+            </div>
+            <div class="level-container">
+                <div class="level-label">Level 3 (Top)</div>
+                <div class="grid" id="grid-2"></div>
+            </div>
+        </div>
+
+        <button id="restart-btn" onclick="sendRestart()">Play Again</button>
+    </div>
+
+<script>
+    /**
+     * 3D Tic Tac Toe (3x3x3) Logic & Networking
+     */
+
+    // Game Constants
+    const SIZE = 3; // CHANGED to 3
+    let board = []; 
+    let myPlayer = ''; 
+    let currentPlayer = 'X';
+    let isGameActive = false;
+    
+    // Networking
+    let peer = null;
+    let conn = null;
+
+    // --- Initialization ---
+
+    function initBoard() {
+        board = [];
+        for (let z = 0; z < SIZE; z++) {
+            let layer = [];
+            for (let y = 0; y < SIZE; y++) {
+                let row = new Array(SIZE).fill('');
+                layer.push(row);
+            }
+            board.push(layer);
+        }
+    }
+
+    function createGrids() {
+        for (let z = 0; z < SIZE; z++) {
+            const gridEl = document.getElementById(`grid-${z}`);
+            gridEl.innerHTML = '';
+            for (let y = 0; y < SIZE; y++) {
+                for (let x = 0; x < SIZE; x++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.z = z;
+                    cell.dataset.y = y;
+                    cell.dataset.x = x;
+                    cell.id = `cell-${z}-${y}-${x}`;
+                    cell.addEventListener('click', () => handleCellClick(x, y, z));
+                    gridEl.appendChild(cell);
+                }
+            }
+        }
+    }
+
+    // --- Networking Functions ---
+
+    function hostGame() {
+        document.getElementById('menu-start').style.display = 'none';
+        document.getElementById('menu-host-waiting').style.display = 'block';
+
+        peer = new Peer(); 
+        
+        peer.on('open', (id) => {
+            document.getElementById('my-code').innerText = id;
+        });
+
+        peer.on('connection', (connection) => {
+            conn = connection;
+            setupConnection();
+            myPlayer = 'X'; 
+            startGame();
+        });
+    }
+
+    function joinGame() {
+        const code = document.getElementById('join-code-input').value.trim();
+        if (!code) return alert("Please enter a code");
+
+        document.getElementById('menu-start').style.display = 'none';
+        document.getElementById('menu-status').style.display = 'block';
+
+        peer = new Peer();
+        
+        peer.on('open', () => {
+            conn = peer.connect(code);
+            setupConnection();
+        });
+    }
+
+    function setupConnection() {
+        conn.on('open', () => {
+            console.log("Connected!");
+            if (!myPlayer) myPlayer = 'O'; 
+            
+            document.getElementById('connection-panel').style.display = 'none';
+            document.getElementById('game-container').style.display = 'flex';
+            
+            startGame();
+        });
+
+        conn.on('data', (data) => {
+            if (data.type === 'move') {
+                applyMove(data.x, data.y, data.z, data.player);
+            } else if (data.type === 'restart') {
+                resetGame();
+            }
+        });
+
+        conn.on('close', () => {
+            alert("Opponent disconnected");
+            location.reload();
+        });
+    }
+
+    // --- Game Logic ---
+
+    function startGame() {
+        initBoard();
+        createGrids();
+        currentPlayer = 'X';
+        isGameActive = true;
+        updateStatus();
+    }
+
+    function handleCellClick(x, y, z) {
+        if (!isGameActive) return;
+        if (currentPlayer !== myPlayer) return; 
+        if (board[z][y][x] !== '') return; 
+
+        conn.send({ type: 'move', x: x, y: y, z: z, player: myPlayer });
+        applyMove(x, y, z, myPlayer);
+    }
+
+    function applyMove(x, y, z, player) {
+        board[z][y][x] = player;
+        
+        const cell = document.getElementById(`cell-${z}-${y}-${x}`);
+        cell.innerText = player;
+        cell.classList.add(player.toLowerCase());
+        cell.classList.add('taken');
+
+        const winLine = checkWin(player);
+        if (winLine) {
+            isGameActive = false;
+            highlightWin(winLine);
+            document.getElementById('turn-indicator').innerText = `${player} Wins!`;
+            document.getElementById('restart-btn').style.display = 'block';
+        } else if (isBoardFull()) {
+            isGameActive = false;
+            document.getElementById('turn-indicator').innerText = `It's a Draw!`;
+            document.getElementById('restart-btn').style.display = 'block';
+        } else {
+            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+            updateStatus();
+        }
+    }
+
+    function updateStatus() {
+        const turnText = document.getElementById('turn-indicator');
+        if (currentPlayer === myPlayer) {
+            turnText.innerText = "Your Turn (" + myPlayer + ")";
+            turnText.style.color = "#2ecc71";
+        } else {
+            turnText.innerText = "Opponent's Turn";
+            turnText.style.color = "#ffffff";
+        }
+    }
+
+    // --- Win Detection Logic (3x3x3) ---
+
+    function checkWin(p) {
+        const lines = [];
+
+        // 1. Orthogonal Lines (Rows, Cols, Pillars)
+        for(let z=0; z<SIZE; z++) {
+            for(let i=0; i<SIZE; i++) {
+                lines.push(getLineCells(0, i, z, 1, 0, 0)); // Row
+                lines.push(getLineCells(i, 0, z, 0, 1, 0)); // Col
+                lines.push(getLineCells(i, z, 0, 0, 0, 1)); // Pillar
+            }
+        }
+
+        // 2. Diagonals on 2D planes
+        for(let z=0; z<SIZE; z++) { // XY Planes
+            lines.push(getLineCells(0, 0, z, 1, 1, 0));
+            lines.push(getLineCells(SIZE-1, 0, z, -1, 1, 0));
+        }
+        for(let y=0; y<SIZE; y++) { // XZ Planes
+            lines.push(getLineCells(0, y, 0, 1, 0, 1));
+            lines.push(getLineCells(SIZE-1, y, 0, -1, 0, 1));
+        }
+        for(let x=0; x<SIZE; x++) { // YZ Planes
+            lines.push(getLineCells(x, 0, 0, 0, 1, 1));
+            lines.push(getLineCells(x, SIZE-1, 0, 0, -1, 1));
+        }
+
+        // 3. Main 3D Diagonals (Corners to Corners)
+        lines.push(getLineCells(0, 0, 0, 1, 1, 1));
+        lines.push(getLineCells(SIZE-1, 0, 0, -1, 1, 1));
+        lines.push(getLineCells(0, SIZE-1, 0, 1, -1, 1));
+        lines.push(getLineCells(SIZE-1, SIZE-1, 0, -1, -1, 1));
+
+        for (let line of lines) {
+            if (line.every(c => board[c.z][c.y][c.x] === p)) {
+                return line;
+            }
+        }
+        return null;
+    }
+
+    function getLineCells(startX, startY, startZ, dx, dy, dz) {
+        let cells = [];
+        for (let i = 0; i < SIZE; i++) {
+            cells.push({ x: startX + i*dx, y: startY + i*dy, z: startZ + i*dz });
+        }
+        return cells;
+    }
+
+    function highlightWin(line) {
+        line.forEach(c => {
+            const el = document.getElementById(`cell-${c.z}-${c.y}-${c.x}`);
+            if(el) el.classList.add('win');
+        });
+    }
+
+    function isBoardFull() {
+        for(let z=0; z<SIZE; z++)
+            for(let y=0; y<SIZE; y++)
+                for(let x=0; x<SIZE; x++)
+                    if(board[z][y][x] === '') return false;
+        return true;
+    }
+
+    function sendRestart() {
+        conn.send({ type: 'restart' });
+        resetGame();
+    }
+
+    function resetGame() {
+        document.getElementById('restart-btn').style.display = 'none';
+        startGame();
+    }
+
+</script>
+</body>
+</html>
