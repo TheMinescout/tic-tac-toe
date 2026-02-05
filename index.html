@@ -3,445 +3,690 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Tic-Tac-Toe (3x3x3) Multiplayer</title>
+    <title>Master Tic-Tac-Toe Suite</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
         :root {
-            --bg-color: #1a1a2e;
-            --accent: #e94560;
-            --secondary: #16213e;
-            --text: #ffffff;
-            --highlight: #0f3460;
+            --bg: #121212;
+            --surface: #1e1e1e;
+            --primary: #bb86fc;
+            --secondary: #03dac6;
+            --error: #cf6679;
+            --on-bg: #ffffff;
+            --grid-line: #333;
         }
 
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text);
+            font-family: 'Segoe UI', sans-serif;
+            background-color: var(--bg);
+            color: var(--on-bg);
+            margin: 0;
             display: flex;
             flex-direction: column;
             align-items: center;
             min-height: 100vh;
-            margin: 0;
-            padding: 20px;
         }
 
-        h1 { margin-bottom: 10px; text-transform: uppercase; letter-spacing: 2px; }
+        h1, h2, h3 { text-align: center; margin: 10px 0; }
         
-        /* Connection Panel */
-        #connection-panel {
-            background: var(--secondary);
-            padding: 20px;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-            margin-bottom: 20px;
-            text-align: center;
+        /* --- UI Screens --- */
+        .screen {
+            display: none;
             width: 100%;
-            max-width: 600px;
-        }
-
-        input {
-            padding: 10px;
-            border-radius: 4px;
-            border: none;
-            width: 200px;
-            margin: 5px;
-            text-transform: uppercase; /* Force uppercase for easier reading */
-        }
-
-        button {
-            padding: 10px 20px;
-            background-color: var(--accent);
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-weight: bold;
-            transition: transform 0.1s;
-        }
-
-        button:hover { transform: scale(1.05); }
-        button:disabled { background-color: grey; cursor: not-allowed; }
-
-        .status { margin-top: 10px; font-style: italic; color: #aaa; }
-        .code-display { font-family: monospace; font-size: 1.5em; background: #000; padding: 10px; border-radius: 4px; user-select: all; letter-spacing: 2px; color: #4facfe;}
-
-        /* Game Board Area */
-        #game-container {
-            display: none; /* Hidden until connected */
+            max-width: 800px;
+            padding: 20px;
+            box-sizing: border-box;
             flex-direction: column;
             align-items: center;
         }
+        .active { display: flex; }
 
-        #turn-indicator {
-            font-size: 1.5em;
-            margin-bottom: 20px;
-            font-weight: bold;
+        /* --- Buttons & Inputs --- */
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 15px 0; }
+        
+        button {
+            padding: 12px 24px;
+            font-size: 1rem;
+            background: var(--surface);
+            border: 1px solid var(--primary);
+            color: var(--primary);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        button:hover { background: var(--primary); color: var(--bg); }
+        
+        input {
+            padding: 12px;
+            background: var(--surface);
+            border: 1px solid #555;
+            color: white;
+            border-radius: 4px;
+            text-align: center;
+            font-size: 1rem;
         }
 
-        .boards-wrapper {
+        .code-box {
+            background: black;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 1.2rem;
+            border: 1px dashed var(--secondary);
+            margin: 10px;
+            user-select: all;
+        }
+
+        /* --- Game Board Styles --- */
+        
+        /* Generic Cell */
+        .cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            cursor: pointer;
+            background: var(--surface);
+        }
+        .cell.x { color: var(--secondary); }
+        .cell.o { color: var(--primary); }
+        .cell:hover:not(.taken) { filter: brightness(1.2); }
+
+        /* 1. Normal 3x3 */
+        #board-normal {
+            display: grid;
+            grid-template-columns: repeat(3, 80px);
+            grid-template-rows: repeat(3, 80px);
+            gap: 5px;
+            background: var(--grid-line);
+            padding: 5px;
+        }
+        #board-normal .cell { font-size: 2.5rem; }
+
+        /* 2. 3D 3x3x3 */
+        #board-3d {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+        .layer-3d {
+            display: grid;
+            grid-template-columns: repeat(3, 50px);
+            grid-template-rows: repeat(3, 50px);
+            gap: 3px;
+            background: var(--grid-line);
+            padding: 3px;
+            transform: rotateX(15deg);
+        }
+        .layer-label { text-align: center; margin-bottom: 5px; color: #888; }
+        #board-3d .cell { font-size: 1.5rem; width: 50px; height: 50px; }
+
+        /* 3. Ultimate */
+        #board-ultimate {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 30px;
+            gap: 10px;
+            background: #444; /* Thicker lines for macro board */
+            padding: 10px;
+            max-width: 400px;
         }
-
-        @media (max-width: 800px) {
-            .boards-wrapper { grid-template-columns: repeat(1, 1fr); }
-        }
-
-        .level-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-        }
-
-        .level-label { margin-bottom: 10px; color: var(--accent); }
-
-        .grid {
+        .sub-grid {
             display: grid;
-            grid-template-columns: repeat(3, 60px); 
-            grid-template-rows: repeat(3, 60px);
-            gap: 5px;
-            background-color: var(--highlight);
-            padding: 5px;
-            border-radius: 4px;
-            transform: rotateX(10deg);
-            box-shadow: 0 10px 20px rgba(0,0,0,0.3);
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            background: var(--grid-line);
+            padding: 2px;
+        }
+        .sub-grid.active-zone { background: var(--secondary); } /* Highlight playable grid */
+        .sub-grid.won-x { background: rgba(3, 218, 198, 0.3); }
+        .sub-grid.won-o { background: rgba(187, 134, 252, 0.3); }
+        
+        #board-ultimate .cell {
+            height: 30px;
+            font-size: 1rem;
         }
 
-        .cell {
-            width: 60px;
-            height: 60px;
-            background-color: var(--secondary);
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 28px;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .cell:hover { background-color: #2a3b55; }
-        .cell.taken { cursor: default; }
-        .cell.x { color: #4facfe; }
-        .cell.o { color: #f093fb; }
-        .cell.win { background-color: #2ecc71; color: white; }
-
-        #restart-btn { display: none; margin-top: 20px; background-color: #2ecc71;}
+        #turn-display { margin-top: 20px; font-size: 1.2rem; font-weight: bold; }
+        #restart-btn { display: none; background: var(--secondary); color: black; border: none; font-weight: bold; margin-top: 20px;}
 
     </style>
 </head>
 <body>
 
-    <h1>3D Tic-Tac-Toe</h1>
+    <h1>Master Tic-Tac-Toe</h1>
 
-    <div id="connection-panel">
-        <div id="menu-start">
-            <h3>Multiplayer Setup</h3>
+    <div id="screen-start" class="screen active">
+        <h2>Select Opponent</h2>
+        <div class="btn-group">
+            <button onclick="selectOpponent('bot')">Single Player (vs Bot)</button>
+            <button onclick="selectOpponent('human')">Multiplayer (P2P)</button>
+        </div>
+    </div>
+
+    <div id="screen-variant" class="screen">
+        <h2>Select Game Type</h2>
+        <div class="btn-group">
+            <button onclick="selectVariant('normal')">Normal (3x3)</button>
+            <button onclick="selectVariant('3d')">3D (3x3x3)</button>
+            <button onclick="selectVariant('ultimate')">Ultimate</button>
+        </div>
+        <button onclick="goBack('screen-start')" style="margin-top:20px; font-size:0.8rem">Back</button>
+    </div>
+
+    <div id="screen-difficulty" class="screen">
+        <h2>Select Difficulty</h2>
+        <div class="btn-group">
+            <button onclick="startGameBot('easy')">Easy</button>
+            <button onclick="startGameBot('medium')">Medium</button>
+            <button onclick="startGameBot('hard')">Hard</button>
+        </div>
+        <button onclick="goBack('screen-variant')" style="margin-top:20px; font-size:0.8rem">Back</button>
+    </div>
+
+    <div id="screen-multiplayer" class="screen">
+        <h2>Multiplayer Setup</h2>
+        <div id="mp-menu">
             <button onclick="hostGame()">Host Game</button>
             <span style="margin: 0 10px;">OR</span>
-            <input type="text" id="join-code-input" placeholder="Enter 9-Char Code">
+            <input type="text" id="join-code" placeholder="Enter Code Here">
             <button onclick="joinGame()">Join Game</button>
         </div>
 
-        <div id="menu-host-waiting" style="display:none;">
-            <p>Share this code with your friend:</p>
-            <div class="code-display" id="my-code">...</div>
-            <p class="status">Waiting for opponent to join...</p>
+        <div id="mp-host-area" style="display:none; text-align: center;">
+            <p>Your Game Code (Share this):</p>
+            <div id="host-code-display" class="code-box">Generating...</div>
+            <p>Waiting for opponent...</p>
         </div>
 
-        <div id="menu-status" style="display:none;">
-            <p class="status" id="connection-status">Connecting...</p>
-        </div>
+        <div id="mp-status" style="display:none; color: var(--secondary);">Connecting...</div>
+        <button onclick="goBack('screen-variant')" style="margin-top:20px; font-size:0.8rem">Back</button>
     </div>
 
-    <div id="game-container">
-        <div id="turn-indicator">Your Turn (X)</div>
-        
-        <div class="boards-wrapper">
-            <div class="level-container">
-                <div class="level-label">Level 1 (Bottom)</div>
-                <div class="grid" id="grid-0"></div>
-            </div>
-            <div class="level-container">
-                <div class="level-label">Level 2 (Middle)</div>
-                <div class="grid" id="grid-1"></div>
-            </div>
-            <div class="level-container">
-                <div class="level-label">Level 3 (Top)</div>
-                <div class="grid" id="grid-2"></div>
-            </div>
-        </div>
+    <div id="screen-game" class="screen">
+        <h2 id="game-title">Tic-Tac-Toe</h2>
+        <div id="turn-display">X's Turn</div>
 
-        <button id="restart-btn" onclick="sendRestart()">Play Again</button>
+        <div id="board-container"></div>
+
+        <button id="restart-btn" onclick="triggerRestart()">Play Again</button>
+        <button onclick="location.reload()" style="margin-top: 20px; background: transparent; color: #666; border: none; font-size: 0.8rem;">Exit to Menu</button>
     </div>
 
 <script>
-    /**
-     * 3D Tic Tac Toe (3x3x3) with Short Codes
-     */
+    /* --- GLOBAL STATE --- */
+    const state = {
+        screen: 'screen-start',
+        opponent: null, // 'bot' or 'human'
+        variant: null,  // 'normal', '3d', 'ultimate'
+        difficulty: null, // 'easy', 'medium', 'hard'
+        
+        // Game Logic State
+        board: [], 
+        turn: 'X',
+        myPlayer: 'X', // 'X' for Host/Bot-Player, 'O' for Joiner/Bot
+        active: false,
+        
+        // Ultimate Specific
+        ultimateMacro: [], // 3x3 array of who won which subgrid
+        activeSubGrid: -1, // -1 means any, 0-8 specific
 
-    const SIZE = 3;
-    let board = []; 
-    let myPlayer = ''; 
-    let currentPlayer = 'X';
-    let isGameActive = false;
-    
-    // Networking
-    let peer = null;
-    let conn = null;
+        // Network
+        peer: null,
+        conn: null
+    };
 
-    // --- Initialization ---
+    /* --- NAVIGATION --- */
+    function showScreen(id) {
+        document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        state.screen = id;
+    }
 
-    function initBoard() {
-        board = [];
-        for (let z = 0; z < SIZE; z++) {
-            let layer = [];
-            for (let y = 0; y < SIZE; y++) {
-                let row = new Array(SIZE).fill('');
-                layer.push(row);
-            }
-            board.push(layer);
+    function goBack(target) { showScreen(target); }
+
+    function selectOpponent(type) {
+        state.opponent = type;
+        if(type === 'bot') showScreen('screen-variant');
+        else showScreen('screen-variant'); // Both go to variant first
+    }
+
+    function selectVariant(v) {
+        state.variant = v;
+        if (state.opponent === 'bot') {
+            showScreen('screen-difficulty');
+        } else {
+            showScreen('screen-multiplayer');
         }
     }
 
-    function createGrids() {
-        for (let z = 0; z < SIZE; z++) {
-            const gridEl = document.getElementById(`grid-${z}`);
-            gridEl.innerHTML = '';
-            for (let y = 0; y < SIZE; y++) {
-                for (let x = 0; x < SIZE; x++) {
+    /* --- GAME STARTUP --- */
+
+    function startGameBot(diff) {
+        state.difficulty = diff;
+        state.myPlayer = 'X'; // Player is X
+        initGame(state.variant);
+    }
+
+    // Initialize logic based on variant
+    function initGame(variant) {
+        showScreen('screen-game');
+        state.active = true;
+        state.turn = 'X';
+        state.board = [];
+        document.getElementById('restart-btn').style.display = 'none';
+        document.getElementById('game-title').innerText = variant.toUpperCase() + " Tic-Tac-Toe";
+        updateTurnDisplay();
+
+        const container = document.getElementById('board-container');
+        container.innerHTML = '';
+
+        if (variant === 'normal') initNormal(container);
+        else if (variant === '3d') init3D(container);
+        else if (variant === 'ultimate') initUltimate(container);
+    }
+
+    /* --- RENDERERS & LOGIC INIT --- */
+
+    function initNormal(container) {
+        const grid = document.createElement('div');
+        grid.id = 'board-normal';
+        state.board = Array(9).fill(null);
+
+        for (let i = 0; i < 9; i++) {
+            const cell = document.createElement('div');
+            cell.className = 'cell';
+            cell.dataset.idx = i;
+            cell.onclick = () => handleInput(i);
+            grid.appendChild(cell);
+        }
+        container.appendChild(grid);
+    }
+
+    function init3D(container) {
+        const wrapper = document.createElement('div');
+        wrapper.id = 'board-3d';
+        state.board = Array(27).fill(null); // 3x3x3 flattened
+
+        for (let z = 0; z < 3; z++) {
+            const layerBox = document.createElement('div');
+            layerBox.className = 'level-container';
+            
+            const label = document.createElement('div');
+            label.className = 'layer-label';
+            label.innerText = `Level ${z+1}`;
+            layerBox.appendChild(label);
+
+            const layer = document.createElement('div');
+            layer.className = 'layer-3d';
+            for (let y = 0; y < 3; y++) {
+                for (let x = 0; x < 3; x++) {
+                    const idx = z*9 + y*3 + x;
                     const cell = document.createElement('div');
-                    cell.classList.add('cell');
-                    cell.dataset.z = z;
-                    cell.dataset.y = y;
-                    cell.dataset.x = x;
-                    cell.id = `cell-${z}-${y}-${x}`;
-                    cell.addEventListener('click', () => handleCellClick(x, y, z));
-                    gridEl.appendChild(cell);
+                    cell.className = 'cell';
+                    cell.dataset.idx = idx;
+                    cell.onclick = () => handleInput(idx);
+                    layer.appendChild(cell);
                 }
             }
+            layerBox.appendChild(layer);
+            wrapper.appendChild(layerBox);
         }
+        container.appendChild(wrapper);
     }
 
-    // --- Networking Functions ---
+    function initUltimate(container) {
+        const grid = document.createElement('div');
+        grid.id = 'board-ultimate';
+        
+        // 9 subgrids, each with 9 cells. State is 9x9=81
+        state.board = Array(81).fill(null); 
+        state.ultimateMacro = Array(9).fill(null); // Winner of big grids
+        state.activeSubGrid = -1; 
 
-    // Generate a random 9-character ID (uppercase letters + numbers)
-    function generateShortId() {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // Removed I, 1, 0, O for clarity
-        let result = '';
         for (let i = 0; i < 9; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
+            const sub = document.createElement('div');
+            sub.className = 'sub-grid active-zone'; // Initially all active
+            sub.id = `sub-${i}`;
+            
+            for (let j = 0; j < 9; j++) {
+                const globalIdx = i*9 + j;
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.dataset.idx = globalIdx;
+                cell.onclick = () => handleInput(globalIdx);
+                sub.appendChild(cell);
+            }
+            grid.appendChild(sub);
         }
-        return result;
+        container.appendChild(grid);
     }
+
+    /* --- INPUT HANDLING --- */
+
+    function handleInput(idx) {
+        if (!state.active) return;
+        if (state.turn !== state.myPlayer && state.opponent === 'bot') return; // Not player turn vs bot
+        if (state.turn !== state.myPlayer && state.opponent === 'human') return; // Not player turn vs human
+        
+        // Validate Move
+        if (!isValidMove(idx)) return;
+
+        makeMove(idx, state.myPlayer);
+        
+        // Network Send
+        if (state.opponent === 'human' && state.conn) {
+            state.conn.send({ type: 'move', idx: idx });
+        }
+
+        // Bot Response
+        if (state.opponent === 'bot' && state.active) {
+            setTimeout(botMove, 500); // Small delay for realism
+        }
+    }
+
+    function isValidMove(idx) {
+        // Basic check
+        if (state.board[idx] !== null) return false;
+
+        // Ultimate Specific Logic
+        if (state.variant === 'ultimate') {
+            const subGridIdx = Math.floor(idx / 9);
+            // Must play in active subgrid, or any if active is -1
+            if (state.activeSubGrid !== -1 && subGridIdx !== state.activeSubGrid) return false;
+            // Cannot play in a full/won subgrid (unless activeSubGrid was -1, handled by loop logic usually)
+            if (state.ultimateMacro[subGridIdx] !== null) return false;
+        }
+
+        return true;
+    }
+
+    function makeMove(idx, player) {
+        state.board[idx] = player;
+        renderCell(idx, player);
+
+        // Win Logic Check
+        let won = false;
+        if (state.variant === 'normal') won = checkWinNormal(state.board, player);
+        else if (state.variant === '3d') won = checkWin3D(state.board, player);
+        else if (state.variant === 'ultimate') won = handleUltimateMove(idx, player);
+
+        if (won) {
+            endGame(player + " Wins!");
+        } else if (isDraw()) {
+            endGame("It's a Draw!");
+        } else {
+            // Switch Turn
+            state.turn = state.turn === 'X' ? 'O' : 'X';
+            updateTurnDisplay();
+            
+            if (state.variant === 'ultimate') highlightActiveSubGrids();
+        }
+    }
+
+    /* --- RENDERING UPDATES --- */
+
+    function renderCell(idx, player) {
+        // Find DOM element
+        let el;
+        if(state.variant === 'normal') el = document.querySelector(`#board-normal .cell[data-idx='${idx}']`);
+        else if(state.variant === '3d') el = document.querySelector(`.layer-3d .cell[data-idx='${idx}']`);
+        else if(state.variant === 'ultimate') el = document.querySelector(`#board-ultimate .cell[data-idx='${idx}']`);
+        
+        if (el) {
+            el.innerText = player;
+            el.classList.add(player.toLowerCase());
+            el.classList.add('taken');
+        }
+    }
+
+    function updateTurnDisplay() {
+        const el = document.getElementById('turn-display');
+        if (state.turn === state.myPlayer) {
+            el.innerText = "Your Turn (" + state.myPlayer + ")";
+            el.style.color = "var(--secondary)";
+        } else {
+            el.innerText = state.opponent === 'bot' ? "Bot Thinking..." : "Opponent's Turn";
+            el.style.color = "var(--on-bg)";
+        }
+    }
+
+    function highlightActiveSubGrids() {
+        // For Ultimate
+        for(let i=0; i<9; i++) {
+            const sub = document.getElementById(`sub-${i}`);
+            sub.classList.remove('active-zone');
+            
+            // If won, ignore
+            if(state.ultimateMacro[i]) continue;
+
+            // If activeSubGrid is -1 (anywhere) OR matches i
+            if (state.activeSubGrid === -1 || state.activeSubGrid === i) {
+                sub.classList.add('active-zone');
+            }
+        }
+    }
+
+    /* --- WIN LOGIC --- */
+
+    const WINS_3X3 = [
+        [0,1,2],[3,4,5],[6,7,8], // Rows
+        [0,3,6],[1,4,7],[2,5,8], // Cols
+        [0,4,8],[2,4,6]          // Diags
+    ];
+
+    function checkWinNormal(boardArr, p) {
+        return WINS_3X3.some(combo => combo.every(i => boardArr[i] === p));
+    }
+
+    function checkWin3D(b, p) {
+        // Complex 3D lines. 
+        // Helper: Convert linear idx to x,y,z
+        const toXYZ = (i) => ({x: i%3, y: Math.floor((i/3))%3, z: Math.floor(i/9)});
+        // Helper: Check a line defined by start and vector
+        const checkLine = (sx,sy,sz, dx,dy,dz) => {
+            for(let i=0; i<3; i++) {
+                const idx = (sz+i*dz)*9 + (sy+i*dy)*3 + (sx+i*dx);
+                if (b[idx] !== p) return false;
+            }
+            return true;
+        };
+
+        // 1. Orthogonals
+        for(let z=0; z<3; z++) for(let y=0; y<3; y++) if(checkLine(0,y,z, 1,0,0)) return true; // Row
+        for(let z=0; z<3; z++) for(let x=0; x<3; x++) if(checkLine(x,0,z, 0,1,0)) return true; // Col
+        for(let y=0; y<3; y++) for(let x=0; x<3; x++) if(checkLine(x,y,0, 0,0,1)) return true; // Pillar
+
+        // 2. 2D Diagonals
+        for(let z=0; z<3; z++) { if(checkLine(0,0,z, 1,1,0)) return true; if(checkLine(2,0,z, -1,1,0)) return true; }
+        for(let y=0; y<3; y++) { if(checkLine(0,y,0, 1,0,1)) return true; if(checkLine(2,y,0, -1,0,1)) return true; }
+        for(let x=0; x<3; x++) { if(checkLine(x,0,0, 0,1,1)) return true; if(checkLine(x,2,0, 0,-1,1)) return true; }
+
+        // 3. 3D Diagonals
+        if(checkLine(0,0,0, 1,1,1)) return true;
+        if(checkLine(2,0,0, -1,1,1)) return true;
+        if(checkLine(0,2,0, 1,-1,1)) return true;
+        if(checkLine(2,2,0, -1,-1,1)) return true;
+
+        return false;
+    }
+
+    function handleUltimateMove(idx, p) {
+        // 1. Check if this move won the subgrid
+        const subGridIdx = Math.floor(idx / 9);
+        const relativeIdx = idx % 9;
+        
+        // Extract subgrid array
+        const start = subGridIdx * 9;
+        const subArr = state.board.slice(start, start+9);
+        
+        if (state.ultimateMacro[subGridIdx] === null && checkWinNormal(subArr, p)) {
+            state.ultimateMacro[subGridIdx] = p;
+            document.getElementById(`sub-${subGridIdx}`).classList.add(p === 'X' ? 'won-x' : 'won-o');
+        }
+
+        // 2. Set next active grid based on relative move
+        if (state.ultimateMacro[relativeIdx] !== null || isSubGridFull(relativeIdx)) {
+            state.activeSubGrid = -1; // Can play anywhere
+        } else {
+            state.activeSubGrid = relativeIdx;
+        }
+
+        // 3. Check macro win
+        return checkWinNormal(state.ultimateMacro, p);
+    }
+
+    function isSubGridFull(subIdx) {
+        for(let i=0; i<9; i++) {
+            if (state.board[subIdx*9 + i] === null) return false;
+        }
+        return true;
+    }
+
+    function isDraw() {
+        return state.board.every(c => c !== null);
+    }
+
+    function endGame(msg) {
+        state.active = false;
+        document.getElementById('turn-display').innerText = msg;
+        document.getElementById('restart-btn').style.display = 'inline-block';
+    }
+
+    /* --- BOT AI --- */
+
+    function botMove() {
+        let idx = -1;
+        
+        // 1. Get available moves
+        let moves = [];
+        for(let i=0; i<state.board.length; i++) {
+            if(isValidMove(i)) moves.push(i);
+        }
+
+        if (moves.length === 0) return;
+
+        // 2. Strategy based on difficulty
+        const diff = state.difficulty;
+        const rand = Math.random();
+
+        // EASY: Completely Random
+        if (diff === 'easy') {
+            idx = moves[Math.floor(Math.random() * moves.length)];
+        }
+        // MEDIUM: 30% Random, 70% Block/Win
+        else if (diff === 'medium') {
+            if (rand > 0.7) idx = moves[Math.floor(Math.random() * moves.length)];
+            else idx = findBestMove(moves);
+        }
+        // HARD: 10% Random (human error), 90% Strategic
+        else {
+            if (rand > 0.95) idx = moves[Math.floor(Math.random() * moves.length)];
+            else idx = findBestMove(moves);
+        }
+
+        makeMove(idx, 'O');
+    }
+
+    // Heuristic "Best" Move (Simplified for single file)
+    function findBestMove(moves) {
+        // A. Can I win instantly?
+        for (let m of moves) {
+            let temp = [...state.board];
+            temp[m] = 'O';
+            if (checkWinSim(temp, 'O')) return m;
+        }
+        // B. Must I block opponent win?
+        for (let m of moves) {
+            let temp = [...state.board];
+            temp[m] = 'X';
+            if (checkWinSim(temp, 'X')) return m;
+        }
+        // C. Ultimate Strategic: Don't send opponent to free grid (for Ultimate)
+        if (state.variant === 'ultimate') {
+            // Try to pick a move that sends opponent to a full/won grid (giving them free choice is bad, but sending them to a won grid is usually safe in simplified rules, but here let's just pick random safe)
+            // Simplified: Pick center if available
+             const preferred = moves.find(m => m % 9 === 4);
+             if (preferred) return preferred;
+        }
+        
+        // D. Pick Center if available (Normal/3D)
+        if (state.variant === 'normal' && moves.includes(4)) return 4;
+        if (state.variant === '3d' && moves.includes(13)) return 13; // 3D center
+
+        // E. Random fallback
+        return moves[Math.floor(Math.random() * moves.length)];
+    }
+
+    function checkWinSim(b, p) {
+        if (state.variant === 'normal') return checkWinNormal(b, p);
+        if (state.variant === '3d') return checkWin3D(b, p);
+        // Ultimate sim is too complex for this recursive step, skip
+        return false;
+    }
+
+    /* --- NETWORKING --- */
 
     function hostGame() {
-        document.getElementById('menu-start').style.display = 'none';
-        document.getElementById('menu-host-waiting').style.display = 'block';
+        document.getElementById('mp-menu').style.display = 'none';
+        document.getElementById('mp-host-area').style.display = 'block';
 
-        // 1. Generate Custom Short ID
-        const customId = generateShortId();
-        document.getElementById('my-code').innerText = customId;
-
-        // 2. Pass it to PeerJS
-        peer = new Peer(customId); 
-        
-        peer.on('open', (id) => {
-            console.log("My peer ID is: " + id);
+        state.peer = new Peer();
+        state.peer.on('open', (id) => {
+            document.getElementById('host-code-display').innerText = id;
         });
-
-        peer.on('error', (err) => {
-            // If ID is taken (rare), try again
-            console.error(err);
-            if (err.type === 'unavailable-id') {
-                alert("Code collision. Retrying...");
-                hostGame();
-            }
-        });
-
-        peer.on('connection', (connection) => {
-            conn = connection;
-            setupConnection();
-            myPlayer = 'X'; 
-            startGame();
+        state.peer.on('connection', (c) => {
+            state.conn = c;
+            setupConn();
+            // Host is X, Opponent is O.
+            // Send Game Config to Opponent
+            setTimeout(() => {
+                state.conn.send({ type: 'start', variant: state.variant });
+                state.myPlayer = 'X';
+                initGame(state.variant);
+            }, 1000);
         });
     }
 
     function joinGame() {
-        // Force uppercase to match generator
-        const code = document.getElementById('join-code-input').value.trim().toUpperCase();
-        if (!code || code.length !== 9) return alert("Please enter a valid 9-character code");
-
-        document.getElementById('menu-start').style.display = 'none';
-        document.getElementById('menu-status').style.display = 'block';
-
-        peer = new Peer(); // Joiner doesn't need a custom ID
+        const code = document.getElementById('join-code').value;
+        if (!code) return alert("Enter Code");
         
-        peer.on('open', () => {
-            conn = peer.connect(code);
-            setupConnection();
-        });
+        document.getElementById('mp-menu').style.display = 'none';
+        document.getElementById('mp-status').style.display = 'block';
 
-        peer.on('error', (err) => {
-            alert("Could not connect. Check the code.");
-            location.reload();
+        state.peer = new Peer();
+        state.peer.on('open', () => {
+            state.conn = state.peer.connect(code);
+            setupConn();
         });
     }
 
-    function setupConnection() {
-        conn.on('open', () => {
-            console.log("Connected!");
-            if (!myPlayer) myPlayer = 'O'; 
-            
-            document.getElementById('connection-panel').style.display = 'none';
-            document.getElementById('game-container').style.display = 'flex';
-            
-            startGame();
-        });
-
-        conn.on('data', (data) => {
+    function setupConn() {
+        state.conn.on('data', (data) => {
+            if (data.type === 'start') {
+                // Joiner receives settings
+                state.variant = data.variant;
+                state.opponent = 'human';
+                state.myPlayer = 'O'; // Joiner is O
+                initGame(state.variant);
+            }
             if (data.type === 'move') {
-                applyMove(data.x, data.y, data.z, data.player);
-            } else if (data.type === 'restart') {
-                resetGame();
+                // Apply Opponent Move
+                const opp = state.myPlayer === 'X' ? 'O' : 'X';
+                makeMove(data.idx, opp);
+            }
+            if (data.type === 'restart') {
+                initGame(state.variant);
             }
         });
-
-        conn.on('close', () => {
-            alert("Opponent disconnected");
-            location.reload();
-        });
+        state.conn.on('close', () => alert("Opponent Disconnected"));
     }
 
-    // --- Game Logic ---
-
-    function startGame() {
-        initBoard();
-        createGrids();
-        currentPlayer = 'X';
-        isGameActive = true;
-        updateStatus();
-    }
-
-    function handleCellClick(x, y, z) {
-        if (!isGameActive) return;
-        if (currentPlayer !== myPlayer) return; 
-        if (board[z][y][x] !== '') return; 
-
-        conn.send({ type: 'move', x: x, y: y, z: z, player: myPlayer });
-        applyMove(x, y, z, myPlayer);
-    }
-
-    function applyMove(x, y, z, player) {
-        board[z][y][x] = player;
-        
-        const cell = document.getElementById(`cell-${z}-${y}-${x}`);
-        cell.innerText = player;
-        cell.classList.add(player.toLowerCase());
-        cell.classList.add('taken');
-
-        const winLine = checkWin(player);
-        if (winLine) {
-            isGameActive = false;
-            highlightWin(winLine);
-            document.getElementById('turn-indicator').innerText = `${player} Wins!`;
-            document.getElementById('restart-btn').style.display = 'block';
-        } else if (isBoardFull()) {
-            isGameActive = false;
-            document.getElementById('turn-indicator').innerText = `It's a Draw!`;
-            document.getElementById('restart-btn').style.display = 'block';
-        } else {
-            currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
-            updateStatus();
+    function triggerRestart() {
+        initGame(state.variant);
+        if (state.opponent === 'human' && state.conn) {
+            state.conn.send({ type: 'restart' });
         }
-    }
-
-    function updateStatus() {
-        const turnText = document.getElementById('turn-indicator');
-        if (currentPlayer === myPlayer) {
-            turnText.innerText = "Your Turn (" + myPlayer + ")";
-            turnText.style.color = "#2ecc71";
-        } else {
-            turnText.innerText = "Opponent's Turn";
-            turnText.style.color = "#ffffff";
-        }
-    }
-
-    // --- Win Detection Logic (3x3x3) ---
-
-    function checkWin(p) {
-        const lines = [];
-
-        // 1. Orthogonal Lines (Rows, Cols, Pillars)
-        for(let z=0; z<SIZE; z++) {
-            for(let i=0; i<SIZE; i++) {
-                lines.push(getLineCells(0, i, z, 1, 0, 0)); // Row
-                lines.push(getLineCells(i, 0, z, 0, 1, 0)); // Col
-                lines.push(getLineCells(i, z, 0, 0, 0, 1)); // Pillar
-            }
-        }
-
-        // 2. Diagonals on 2D planes
-        for(let z=0; z<SIZE; z++) { // XY Planes
-            lines.push(getLineCells(0, 0, z, 1, 1, 0));
-            lines.push(getLineCells(SIZE-1, 0, z, -1, 1, 0));
-        }
-        for(let y=0; y<SIZE; y++) { // XZ Planes
-            lines.push(getLineCells(0, y, 0, 1, 0, 1));
-            lines.push(getLineCells(SIZE-1, y, 0, -1, 0, 1));
-        }
-        for(let x=0; x<SIZE; x++) { // YZ Planes
-            lines.push(getLineCells(x, 0, 0, 0, 1, 1));
-            lines.push(getLineCells(x, SIZE-1, 0, 0, -1, 1));
-        }
-
-        // 3. Main 3D Diagonals (Corners to Corners)
-        lines.push(getLineCells(0, 0, 0, 1, 1, 1));
-        lines.push(getLineCells(SIZE-1, 0, 0, -1, 1, 1));
-        lines.push(getLineCells(0, SIZE-1, 0, 1, -1, 1));
-        lines.push(getLineCells(SIZE-1, SIZE-1, 0, -1, -1, 1));
-
-        for (let line of lines) {
-            if (line.every(c => board[c.z][c.y][c.x] === p)) {
-                return line;
-            }
-        }
-        return null;
-    }
-
-    function getLineCells(startX, startY, startZ, dx, dy, dz) {
-        let cells = [];
-        for (let i = 0; i < SIZE; i++) {
-            cells.push({ x: startX + i*dx, y: startY + i*dy, z: startZ + i*dz });
-        }
-        return cells;
-    }
-
-    function highlightWin(line) {
-        line.forEach(c => {
-            const el = document.getElementById(`cell-${c.z}-${c.y}-${c.x}`);
-            if(el) el.classList.add('win');
-        });
-    }
-
-    function isBoardFull() {
-        for(let z=0; z<SIZE; z++)
-            for(let y=0; y<SIZE; y++)
-                for(let x=0; x<SIZE; x++)
-                    if(board[z][y][x] === '') return false;
-        return true;
-    }
-
-    function sendRestart() {
-        conn.send({ type: 'restart' });
-        resetGame();
-    }
-
-    function resetGame() {
-        document.getElementById('restart-btn').style.display = 'none';
-        startGame();
     }
 
 </script>
