@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Master Tic-Tac-Toe Suite</title>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
     <style>
         :root {
             --bg: #121212;
@@ -54,7 +55,7 @@
             cursor: pointer;
             transition: all 0.2s;
         }
-        button:hover { background: var(--primary); color: var(--bg); }
+        button:hover { background: var(--primary); color: var(--bg); transform: scale(1.05); }
         
         input {
             padding: 12px;
@@ -64,8 +65,9 @@
             border-radius: 4px;
             text-align: center;
             font-size: 1rem;
-            text-transform: uppercase;
+            margin: 5px;
         }
+        .code-input { text-transform: uppercase; letter-spacing: 2px; }
 
         .code-box {
             background: black;
@@ -79,6 +81,20 @@
             color: var(--secondary);
         }
 
+        /* --- Scoreboard --- */
+        #scoreboard {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+            margin-bottom: 15px;
+            background: var(--surface);
+            padding: 10px 20px;
+            border-radius: 20px;
+            border: 1px solid #333;
+        }
+        .score-item { text-align: center; }
+        .score-val { font-size: 1.5rem; font-weight: bold; color: var(--secondary); }
+
         /* --- Game Board Styles --- */
         
         /* Generic Cell */
@@ -89,7 +105,17 @@
             font-weight: bold;
             cursor: pointer;
             background: var(--surface);
+            transition: background 0.2s;
         }
+        /* Animation for placing a piece */
+        .cell.taken span {
+            animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+        }
+        @keyframes popIn {
+            0% { transform: scale(0); opacity: 0; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
         .cell.x { color: var(--secondary); }
         .cell.o { color: var(--primary); }
         .cell:hover:not(.taken) { filter: brightness(1.2); }
@@ -145,7 +171,6 @@
         .sub-grid.won-x { background: rgba(3, 218, 198, 0.3); }
         .sub-grid.won-o { background: rgba(187, 134, 252, 0.3); }
 
-        /* Dimensions fixed to prevent collapse */
         #board-ultimate .cell {
             width: 35px;
             height: 35px;
@@ -167,9 +192,18 @@
     <div id="screen-start" class="screen active">
         <h2>Select Opponent</h2>
         <div class="btn-group">
-            <button onclick="selectOpponent('bot')">Single Player (vs Bot)</button>
-            <button onclick="selectOpponent('human')">Multiplayer (P2P)</button>
+            <button onclick="setupLocal()">Local (Pass & Play)</button>
+            <button onclick="setupBot()">Single Player (vs Bot)</button>
+            <button onclick="setupMultiplayer()">Multiplayer (Online)</button>
         </div>
+    </div>
+
+    <div id="screen-local-setup" class="screen">
+        <h2>Enter Names</h2>
+        <input type="text" id="local-p1" placeholder="Player 1 Name (X)" value="Player 1">
+        <input type="text" id="local-p2" placeholder="Player 2 Name (O)" value="Player 2">
+        <button onclick="finishSetup('local')">Next: Select Game</button>
+        <button onclick="goBack('screen-start')" style="background:transparent; color:#666;">Back</button>
     </div>
 
     <div id="screen-variant" class="screen">
@@ -194,10 +228,11 @@
 
     <div id="screen-multiplayer" class="screen">
         <h2>Multiplayer Setup</h2>
-        <div id="mp-menu">
+        <input type="text" id="mp-name" placeholder="Your Name" value="Player">
+        <div id="mp-menu" style="margin-top: 15px;">
             <button onclick="hostGame()">Host Game</button>
             <span style="margin: 0 10px;">OR</span>
-            <input type="text" id="join-code" placeholder="Enter 9-char Code" maxlength="9">
+            <input type="text" id="join-code" class="code-input" placeholder="Enter 9-char Code" maxlength="9">
             <button onclick="joinGame()">Join Game</button>
         </div>
 
@@ -208,16 +243,31 @@
         </div>
 
         <div id="mp-status" style="display:none; color: var(--secondary);">Connecting...</div>
-        <button onclick="goBack('screen-variant')" style="margin-top:20px; font-size:0.8rem">Back</button>
+        <button onclick="goBack('screen-start')" style="margin-top:20px; font-size:0.8rem">Back</button>
     </div>
 
     <div id="screen-game" class="screen">
-        <h2 id="game-title">Tic-Tac-Toe</h2>
+        <div id="scoreboard">
+            <div class="score-item">
+                <div id="score-name-1">Player 1</div>
+                <div id="score-val-1" class="score-val">0</div>
+            </div>
+            <div class="score-item">
+                <div>Draws</div>
+                <div id="score-val-draw" class="score-val" style="color:#888;">0</div>
+            </div>
+            <div class="score-item">
+                <div id="score-name-2">Player 2</div>
+                <div id="score-val-2" class="score-val">0</div>
+            </div>
+        </div>
+
+        <h3 id="game-title" style="color: #666; margin-bottom: 5px;">Tic-Tac-Toe</h3>
         <div id="turn-display">X's Turn</div>
 
-        <div id="board-container"></div>
+        <div id="board-container" style="margin-top: 20px;"></div>
 
-        <button id="restart-btn" onclick="triggerRestart()">Play Again</button>
+        <button id="restart-btn" onclick="triggerRestart()">Play Next Round</button>
         <button onclick="location.reload()" style="margin-top: 20px; background: transparent; color: #666; border: none; font-size: 0.8rem;">Exit to Menu</button>
     </div>
 
@@ -225,19 +275,24 @@
     /* --- GLOBAL STATE --- */
     const state = {
         screen: 'screen-start',
-        opponent: null, // 'bot' or 'human'
-        variant: null,  // 'normal', '3d', 'ultimate'
-        difficulty: null, // 'easy', 'medium', 'hard'
+        mode: null, // 'local', 'bot', 'human'
+        variant: null,  
+        difficulty: null,
         
-        // Game Logic State
+        // Players
+        p1Name: "Player 1",
+        p2Name: "Player 2",
+        scores: { p1: 0, p2: 0, draw: 0 },
+
+        // Game Logic
         board: [], 
         turn: 'X',
-        myPlayer: 'X', // 'X' for Host/Bot-Player, 'O' for Joiner/Bot
+        myPlayer: 'X', // In Local, this is ignored. In Network/Bot, this is who YOU are.
         active: false,
         
         // Ultimate Specific
-        ultimateMacro: [], // 3x3 array of who won which subgrid
-        activeSubGrid: -1, // -1 means any, 0-8 specific
+        ultimateMacro: [], 
+        activeSubGrid: -1, 
 
         // Network
         peer: null,
@@ -252,41 +307,63 @@
     }
 
     function goBack(target) { 
-        // Cleanup network if backing out
         if (state.peer) { state.peer.destroy(); state.peer = null; }
         showScreen(target); 
     }
 
-    function selectOpponent(type) {
-        state.opponent = type;
-        if(type === 'bot') showScreen('screen-variant');
-        else showScreen('screen-variant'); 
+    /* --- SETUP FLOWS --- */
+    function setupLocal() {
+        state.mode = 'local';
+        showScreen('screen-local-setup');
+    }
+
+    function setupBot() {
+        state.mode = 'bot';
+        state.p1Name = "You";
+        state.p2Name = "Bot";
+        showScreen('screen-variant');
+    }
+
+    function setupMultiplayer() {
+        state.mode = 'human';
+        showScreen('screen-multiplayer');
+    }
+
+    function finishSetup(from) {
+        if (from === 'local') {
+            state.p1Name = document.getElementById('local-p1').value || "Player 1";
+            state.p2Name = document.getElementById('local-p2').value || "Player 2";
+            showScreen('screen-variant');
+        }
     }
 
     function selectVariant(v) {
         state.variant = v;
-        if (state.opponent === 'bot') {
-            showScreen('screen-difficulty');
-        } else {
-            showScreen('screen-multiplayer');
-        }
+        if (state.mode === 'bot') showScreen('screen-difficulty');
+        else if (state.mode === 'human') showScreen('screen-multiplayer');
+        else initGame(v); // Local goes straight to game
     }
-
-    /* --- GAME STARTUP --- */
 
     function startGameBot(diff) {
         state.difficulty = diff;
+        state.p2Name = "Bot (" + diff + ")";
         state.myPlayer = 'X'; 
         initGame(state.variant);
     }
 
+    /* --- GAME INITIALIZATION --- */
     function initGame(variant) {
         showScreen('screen-game');
         state.active = true;
         state.turn = 'X';
         state.board = [];
+        state.ultimateMacro = Array(9).fill(null);
+        state.activeSubGrid = -1;
+
+        // UI Reset
         document.getElementById('restart-btn').style.display = 'none';
-        document.getElementById('game-title').innerText = variant.toUpperCase() + " Tic-Tac-Toe";
+        document.getElementById('game-title').innerText = variant.toUpperCase();
+        updateScoreboard();
         updateTurnDisplay();
 
         const container = document.getElementById('board-container');
@@ -297,19 +374,21 @@
         else if (variant === 'ultimate') initUltimate(container);
     }
 
-    /* --- RENDERERS --- */
+    function updateScoreboard() {
+        document.getElementById('score-name-1').innerText = state.p1Name + " (X)";
+        document.getElementById('score-name-2').innerText = state.p2Name + " (O)";
+        document.getElementById('score-val-1').innerText = state.scores.p1;
+        document.getElementById('score-val-2').innerText = state.scores.p2;
+        document.getElementById('score-val-draw').innerText = state.scores.draw;
+    }
 
+    /* --- RENDERERS --- */
     function initNormal(container) {
         const grid = document.createElement('div');
         grid.id = 'board-normal';
         state.board = Array(9).fill(null);
-
         for (let i = 0; i < 9; i++) {
-            const cell = document.createElement('div');
-            cell.className = 'cell';
-            cell.dataset.idx = i;
-            cell.onclick = () => handleInput(i);
-            grid.appendChild(cell);
+            grid.appendChild(createCell(i));
         }
         container.appendChild(grid);
     }
@@ -318,7 +397,6 @@
         const wrapper = document.createElement('div');
         wrapper.id = 'board-3d';
         state.board = Array(27).fill(null); 
-
         for (let z = 0; z < 3; z++) {
             const layerBox = document.createElement('div');
             layerBox.className = 'level-container';
@@ -326,17 +404,11 @@
             label.className = 'layer-label';
             label.innerText = `Level ${z+1}`;
             layerBox.appendChild(label);
-
             const layer = document.createElement('div');
             layer.className = 'layer-3d';
             for (let y = 0; y < 3; y++) {
                 for (let x = 0; x < 3; x++) {
-                    const idx = z*9 + y*3 + x;
-                    const cell = document.createElement('div');
-                    cell.className = 'cell';
-                    cell.dataset.idx = idx;
-                    cell.onclick = () => handleInput(idx);
-                    layer.appendChild(cell);
+                    layer.appendChild(createCell(z*9 + y*3 + x));
                 }
             }
             layerBox.appendChild(layer);
@@ -349,41 +421,44 @@
         const grid = document.createElement('div');
         grid.id = 'board-ultimate';
         state.board = Array(81).fill(null); 
-        state.ultimateMacro = Array(9).fill(null); 
-        state.activeSubGrid = -1; 
-
         for (let i = 0; i < 9; i++) {
             const sub = document.createElement('div');
             sub.className = 'sub-grid active-zone'; 
             sub.id = `sub-${i}`;
             for (let j = 0; j < 9; j++) {
-                const globalIdx = i*9 + j;
-                const cell = document.createElement('div');
-                cell.className = 'cell';
-                cell.dataset.idx = globalIdx;
-                cell.onclick = () => handleInput(globalIdx);
-                sub.appendChild(cell);
+                sub.appendChild(createCell(i*9 + j));
             }
             grid.appendChild(sub);
         }
         container.appendChild(grid);
     }
 
-    /* --- INPUT HANDLING --- */
+    function createCell(idx) {
+        const cell = document.createElement('div');
+        cell.className = 'cell';
+        cell.dataset.idx = idx;
+        cell.onclick = () => handleInput(idx);
+        return cell;
+    }
 
+    /* --- INPUT HANDLING --- */
     function handleInput(idx) {
         if (!state.active) return;
-        if (state.turn !== state.myPlayer && state.opponent === 'bot') return; 
-        if (state.turn !== state.myPlayer && state.opponent === 'human') return; 
         
+        // Turn Validation
+        if (state.mode !== 'local') {
+            if (state.turn !== state.myPlayer) return; 
+        }
+
         if (!isValidMove(idx)) return;
 
-        makeMove(idx, state.myPlayer);
+        makeMove(idx, state.turn);
         
-        if (state.opponent === 'human' && state.conn) {
+        // Networking & Bot
+        if (state.mode === 'human' && state.conn) {
             state.conn.send({ type: 'move', idx: idx });
         }
-        if (state.opponent === 'bot' && state.active) {
+        if (state.mode === 'bot' && state.active) {
             setTimeout(botMove, 500); 
         }
     }
@@ -408,9 +483,9 @@
         else if (state.variant === 'ultimate') won = handleUltimateMove(idx, player);
 
         if (won) {
-            endGame(player + " Wins!");
+            endGame(player);
         } else if (isDraw()) {
-            endGame("It's a Draw!");
+            endGame('draw');
         } else {
             state.turn = state.turn === 'X' ? 'O' : 'X';
             updateTurnDisplay();
@@ -423,37 +498,58 @@
         if(state.variant === 'normal') el = document.querySelector(`#board-normal .cell[data-idx='${idx}']`);
         else if(state.variant === '3d') el = document.querySelector(`.layer-3d .cell[data-idx='${idx}']`);
         else if(state.variant === 'ultimate') el = document.querySelector(`#board-ultimate .cell[data-idx='${idx}']`);
+        
         if (el) {
-            el.innerText = player;
-            el.classList.add(player.toLowerCase());
-            el.classList.add('taken');
+            el.innerHTML = `<span>${player}</span>`; // Wrap in span for animation
+            el.classList.add(player.toLowerCase(), 'taken');
         }
     }
 
+    /* --- GAME STATE UPDATES --- */
     function updateTurnDisplay() {
         const el = document.getElementById('turn-display');
-        if (state.turn === state.myPlayer) {
-            el.innerText = "Your Turn (" + state.myPlayer + ")";
-            el.style.color = "var(--secondary)";
+        const pName = state.turn === 'X' ? state.p1Name : state.p2Name;
+        
+        if (state.mode === 'local') {
+            el.innerText = `${pName}'s Turn (${state.turn})`;
+            el.style.color = state.turn === 'X' ? "var(--secondary)" : "var(--primary)";
         } else {
-            el.innerText = state.opponent === 'bot' ? "Bot Thinking..." : "Opponent's Turn";
-            el.style.color = "var(--on-bg)";
-        }
-    }
-
-    function highlightActiveSubGrids() {
-        for(let i=0; i<9; i++) {
-            const sub = document.getElementById(`sub-${i}`);
-            sub.classList.remove('active-zone');
-            if(state.ultimateMacro[i]) continue;
-            if (state.activeSubGrid === -1 || state.activeSubGrid === i) {
-                sub.classList.add('active-zone');
+            if (state.turn === state.myPlayer) {
+                el.innerText = "Your Turn";
+                el.style.color = "var(--secondary)";
+            } else {
+                el.innerText = `${pName}'s Turn`;
+                el.style.color = "var(--on-bg)";
             }
         }
     }
 
-    /* --- LOGIC HELPERS --- */
-    
+    function endGame(result) {
+        state.active = false;
+        const display = document.getElementById('turn-display');
+        
+        if (result === 'draw') {
+            display.innerText = "It's a Draw!";
+            state.scores.draw++;
+        } else {
+            const winnerName = result === 'X' ? state.p1Name : state.p2Name;
+            display.innerText = `${winnerName} Wins!`;
+            display.style.color = result === 'X' ? "var(--secondary)" : "var(--primary)";
+            
+            if (result === 'X') state.scores.p1++;
+            else state.scores.p2++;
+            
+            fireConfetti();
+        }
+        updateScoreboard();
+        document.getElementById('restart-btn').style.display = 'inline-block';
+    }
+
+    function fireConfetti() {
+        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#bb86fc', '#03dac6'] });
+    }
+
+    /* --- LOGIC --- */
     const WINS_3X3 = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
 
     function checkWinNormal(boardArr, p) {
@@ -467,6 +563,7 @@
             }
             return true;
         };
+        // 3D Logic: Rows, Cols, Pillars, Diags
         for(let z=0; z<3; z++) for(let y=0; y<3; y++) if(checkLine(0,y,z, 1,0,0)) return true;
         for(let z=0; z<3; z++) for(let x=0; x<3; x++) if(checkLine(x,0,z, 0,1,0)) return true;
         for(let y=0; y<3; y++) for(let x=0; x<3; x++) if(checkLine(x,y,0, 0,0,1)) return true;
@@ -494,7 +591,22 @@
         } else {
             state.activeSubGrid = relativeIdx;
         }
+        
+        // Helper to visual
+        highlightActiveSubGrids();
+
         return checkWinNormal(state.ultimateMacro, p);
+    }
+
+    function highlightActiveSubGrids() {
+        for(let i=0; i<9; i++) {
+            const sub = document.getElementById(`sub-${i}`);
+            sub.classList.remove('active-zone');
+            if(state.ultimateMacro[i]) continue;
+            if (state.activeSubGrid === -1 || state.activeSubGrid === i) {
+                sub.classList.add('active-zone');
+            }
+        }
     }
 
     function isSubGridFull(subIdx) {
@@ -504,14 +616,7 @@
 
     function isDraw() { return state.board.every(c => c !== null); }
 
-    function endGame(msg) {
-        state.active = false;
-        document.getElementById('turn-display').innerText = msg;
-        document.getElementById('restart-btn').style.display = 'inline-block';
-    }
-
-    /* --- BOT --- */
-
+    /* --- BOT AI --- */
     function botMove() {
         let moves = [];
         for(let i=0; i<state.board.length; i++) if(isValidMove(i)) moves.push(i);
@@ -534,14 +639,9 @@
     }
 
     function findBestMove(moves) {
-        for (let m of moves) {
-            let temp = [...state.board]; temp[m] = 'O';
-            if (checkWinSim(temp, 'O')) return m;
-        }
-        for (let m of moves) {
-            let temp = [...state.board]; temp[m] = 'X';
-            if (checkWinSim(temp, 'X')) return m;
-        }
+        // Simple Minimax-lite
+        for (let m of moves) { let temp = [...state.board]; temp[m] = 'O'; if (checkWinSim(temp, 'O')) return m; }
+        for (let m of moves) { let temp = [...state.board]; temp[m] = 'X'; if (checkWinSim(temp, 'X')) return m; }
         if (state.variant === 'ultimate') {
              const preferred = moves.find(m => m % 9 === 4);
              if (preferred) return preferred;
@@ -557,46 +657,33 @@
         return false;
     }
 
-    /* --- NETWORK (9-Char Code Logic) --- */
-
+    /* --- NETWORKING --- */
     function makeId(length) {
-        // Generates a random alphanumeric string
         const chars = 'abcdefghijklmnopqrstuvwxyz0123456789';
         let result = '';
-        for (let i = 0; i < length; i++) {
-            result += chars.charAt(Math.floor(Math.random() * chars.length));
-        }
+        for (let i = 0; i < length; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
         return result;
     }
 
     function hostGame() {
+        const name = document.getElementById('mp-name').value || "Host";
+        state.p1Name = name;
+        
         document.getElementById('mp-menu').style.display = 'none';
         document.getElementById('mp-host-area').style.display = 'block';
 
-        // Custom 9-char ID
         const customId = makeId(9);
-        
         state.peer = new Peer(customId);
         
-        state.peer.on('open', (id) => {
-            document.getElementById('host-code-display').innerText = id;
-        });
-
-        state.peer.on('error', (err) => {
-            // If collision (rare), retry
-            if (err.type === 'unavailable-id') {
-                state.peer.destroy();
-                hostGame(); // Retry
-            } else {
-                alert("Network Error: " + err.type);
-            }
-        });
+        state.peer.on('open', (id) => { document.getElementById('host-code-display').innerText = id; });
+        state.peer.on('error', () => { state.peer.destroy(); hostGame(); }); // Retry if taken
 
         state.peer.on('connection', (c) => {
             state.conn = c;
             setupConn();
+            // Send config
             setTimeout(() => {
-                state.conn.send({ type: 'start', variant: state.variant });
+                state.conn.send({ type: 'start', variant: state.variant, hostName: name });
                 state.myPlayer = 'X';
                 initGame(state.variant);
             }, 1000);
@@ -604,34 +691,43 @@
     }
 
     function joinGame() {
+        const name = document.getElementById('mp-name').value || "Joiner";
         const code = document.getElementById('join-code').value.trim().toLowerCase();
         if (!code || code.length !== 9) return alert("Please enter the 9-character code.");
         
+        state.p2Name = name; // You are P2
         document.getElementById('mp-menu').style.display = 'none';
         document.getElementById('mp-status').style.display = 'block';
 
-        state.peer = new Peer(); // Joiner gets random ID
+        state.peer = new Peer(); 
         state.peer.on('open', () => {
             state.conn = state.peer.connect(code);
             setupConn();
         });
-        state.peer.on('error', (err) => {
-            alert("Could not connect. Check code.");
-            location.reload();
-        });
+        state.peer.on('error', () => { alert("Connection Failed"); location.reload(); });
     }
 
     function setupConn() {
         state.conn.on('data', (data) => {
             if (data.type === 'start') {
+                // Received from Host
                 state.variant = data.variant;
-                state.opponent = 'human';
+                state.p1Name = data.hostName; 
+                state.p2Name = document.getElementById('mp-name').value; // Confirm my name
+                
+                // Send back my name
+                state.conn.send({ type: 'name-ack', name: state.p2Name });
+                
                 state.myPlayer = 'O'; 
                 initGame(state.variant);
             }
+            if (data.type === 'name-ack') {
+                state.p2Name = data.name;
+                updateScoreboard();
+                updateTurnDisplay();
+            }
             if (data.type === 'move') {
-                const opp = state.myPlayer === 'X' ? 'O' : 'X';
-                makeMove(data.idx, opp);
+                makeMove(data.idx, state.myPlayer === 'X' ? 'O' : 'X');
             }
             if (data.type === 'restart') initGame(state.variant);
         });
@@ -640,8 +736,9 @@
 
     function triggerRestart() {
         initGame(state.variant);
-        if (state.opponent === 'human' && state.conn) state.conn.send({ type: 'restart' });
+        if (state.mode === 'human' && state.conn) state.conn.send({ type: 'restart' });
     }
+
 </script>
 </body>
 </html>
