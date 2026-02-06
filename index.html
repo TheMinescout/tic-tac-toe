@@ -29,10 +29,11 @@
         }
 
         h1, h2, h3 { text-align: center; margin: 10px 0; }
+        p { text-align: center; color: #aaa; }
         
         /* --- UI Screens --- */
         .screen {
-            display: none;
+            display: none; /* Hidden by default */
             width: 100%;
             max-width: 800px;
             padding: 20px;
@@ -40,7 +41,7 @@
             flex-direction: column;
             align-items: center;
         }
-        .active { display: flex; }
+        .active { display: flex; } /* Only the active screen is shown */
 
         /* --- Buttons & Inputs --- */
         .btn-group { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin: 15px 0; }
@@ -54,6 +55,7 @@
             border-radius: 4px;
             cursor: pointer;
             transition: all 0.2s;
+            margin: 5px;
         }
         button:hover { background: var(--primary); color: var(--bg); transform: scale(1.05); }
         
@@ -71,14 +73,15 @@
 
         .code-box {
             background: black;
-            padding: 10px;
+            padding: 15px;
             font-family: monospace;
-            font-size: 1.5rem;
-            border: 1px dashed var(--secondary);
-            margin: 10px;
+            font-size: 2rem;
+            border: 2px dashed var(--secondary);
+            margin: 20px;
             user-select: all;
-            letter-spacing: 2px;
+            letter-spacing: 4px;
             color: var(--secondary);
+            font-weight: bold;
         }
 
         /* --- Scoreboard --- */
@@ -106,6 +109,7 @@
             cursor: pointer;
             background: var(--surface);
             transition: background 0.2s;
+            user-select: none;
         }
         /* Animation for placing a piece */
         .cell.taken span {
@@ -171,6 +175,7 @@
         .sub-grid.won-x { background: rgba(3, 218, 198, 0.3); }
         .sub-grid.won-o { background: rgba(187, 134, 252, 0.3); }
 
+        /* FORCE DIMENSIONS so it doesn't collapse */
         #board-ultimate .cell {
             width: 35px;
             height: 35px;
@@ -190,11 +195,11 @@
     <h1>Master Tic-Tac-Toe</h1>
 
     <div id="screen-start" class="screen active">
-        <h2>Select Opponent</h2>
+        <h2>Select Mode</h2>
         <div class="btn-group">
             <button onclick="setupLocal()">Local (Pass & Play)</button>
             <button onclick="setupBot()">Single Player (vs Bot)</button>
-            <button onclick="setupMultiplayer()">Multiplayer (Online)</button>
+            <button onclick="setupMultiplayerMenu()">Multiplayer (Online)</button>
         </div>
     </div>
 
@@ -204,6 +209,20 @@
         <input type="text" id="local-p2" placeholder="Player 2 Name (O)" value="Player 2">
         <button onclick="finishSetup('local')">Next: Select Game</button>
         <button onclick="goBack('screen-start')" style="background:transparent; color:#666;">Back</button>
+    </div>
+
+    <div id="screen-mp-menu" class="screen">
+        <h2>Multiplayer</h2>
+        <input type="text" id="mp-name" placeholder="Enter Your Name" value="Player">
+        <div class="btn-group">
+            <button onclick="setupHost()">Host a Game</button>
+        </div>
+        <p>--- OR ---</p>
+        <div class="btn-group">
+            <input type="text" id="join-code" class="code-input" placeholder="9-CHAR CODE" maxlength="9">
+            <button onclick="joinGame()">Join Game</button>
+        </div>
+        <button onclick="goBack('screen-start')" style="background:transparent; color:#666; margin-top: 20px;">Back</button>
     </div>
 
     <div id="screen-variant" class="screen">
@@ -216,6 +235,15 @@
         <button onclick="goBack('screen-start')" style="margin-top:20px; font-size:0.8rem">Back</button>
     </div>
 
+    <div id="screen-host-waiting" class="screen">
+        <h2>Waiting for Opponent</h2>
+        <p>Share this code with your friend:</p>
+        <div id="host-code-display" class="code-box">Generating...</div>
+        <p>Game Mode: <span id="host-selected-mode" style="color:var(--secondary)">-</span></p>
+        <div id="host-status">Waiting for connection...</div>
+        <button onclick="goBack('screen-mp-menu')" style="margin-top:20px;">Cancel</button>
+    </div>
+
     <div id="screen-difficulty" class="screen">
         <h2>Select Difficulty</h2>
         <div class="btn-group">
@@ -224,26 +252,6 @@
             <button onclick="startGameBot('hard')">Hard</button>
         </div>
         <button onclick="goBack('screen-variant')" style="margin-top:20px; font-size:0.8rem">Back</button>
-    </div>
-
-    <div id="screen-multiplayer" class="screen">
-        <h2>Multiplayer Setup</h2>
-        <input type="text" id="mp-name" placeholder="Your Name" value="Player">
-        <div id="mp-menu" style="margin-top: 15px;">
-            <button onclick="hostGame()">Host Game</button>
-            <span style="margin: 0 10px;">OR</span>
-            <input type="text" id="join-code" class="code-input" placeholder="Enter 9-char Code" maxlength="9">
-            <button onclick="joinGame()">Join Game</button>
-        </div>
-
-        <div id="mp-host-area" style="display:none; text-align: center;">
-            <p>Your Game Code:</p>
-            <div id="host-code-display" class="code-box">...</div>
-            <p>Waiting for opponent...</p>
-        </div>
-
-        <div id="mp-status" style="display:none; color: var(--secondary);">Connecting...</div>
-        <button onclick="goBack('screen-start')" style="margin-top:20px; font-size:0.8rem">Back</button>
     </div>
 
     <div id="screen-game" class="screen">
@@ -275,8 +283,8 @@
     /* --- GLOBAL STATE --- */
     const state = {
         screen: 'screen-start',
-        mode: null, // 'local', 'bot', 'human'
-        variant: null,  
+        mode: null, // 'local', 'bot', 'host', 'join'
+        variant: null, // 'normal', '3d', 'ultimate'
         difficulty: null,
         
         // Players
@@ -287,7 +295,7 @@
         // Game Logic
         board: [], 
         turn: 'X',
-        myPlayer: 'X', // In Local, this is ignored. In Network/Bot, this is who YOU are.
+        myPlayer: 'X', 
         active: false,
         
         // Ultimate Specific
@@ -324,9 +332,15 @@
         showScreen('screen-variant');
     }
 
-    function setupMultiplayer() {
-        state.mode = 'human';
-        showScreen('screen-multiplayer');
+    function setupMultiplayerMenu() {
+        showScreen('screen-mp-menu');
+    }
+
+    function setupHost() {
+        // HOST must select variant first
+        state.mode = 'host';
+        state.p1Name = document.getElementById('mp-name').value || "Host";
+        showScreen('screen-variant');
     }
 
     function finishSetup(from) {
@@ -339,9 +353,17 @@
 
     function selectVariant(v) {
         state.variant = v;
-        if (state.mode === 'bot') showScreen('screen-difficulty');
-        else if (state.mode === 'human') showScreen('screen-multiplayer');
-        else initGame(v); // Local goes straight to game
+        
+        // Flow Redirection based on Mode
+        if (state.mode === 'bot') {
+            showScreen('screen-difficulty');
+        } else if (state.mode === 'host') {
+            // Start Hosting Process
+            startHostingProcess();
+        } else {
+            // Local
+            initGame(v);
+        }
     }
 
     function startGameBot(diff) {
@@ -353,6 +375,9 @@
 
     /* --- GAME INITIALIZATION --- */
     function initGame(variant) {
+        console.log("Initializing Game: ", variant);
+        if(!variant) return alert("Error: No game variant selected.");
+
         showScreen('screen-game');
         state.active = true;
         state.turn = 'X';
@@ -445,7 +470,7 @@
     function handleInput(idx) {
         if (!state.active) return;
         
-        // Turn Validation
+        // Turn Validation (Unless Local)
         if (state.mode !== 'local') {
             if (state.turn !== state.myPlayer) return; 
         }
@@ -455,7 +480,7 @@
         makeMove(idx, state.turn);
         
         // Networking & Bot
-        if (state.mode === 'human' && state.conn) {
+        if ((state.mode === 'host' || state.mode === 'join') && state.conn) {
             state.conn.send({ type: 'move', idx: idx });
         }
         if (state.mode === 'bot' && state.active) {
@@ -500,7 +525,7 @@
         else if(state.variant === 'ultimate') el = document.querySelector(`#board-ultimate .cell[data-idx='${idx}']`);
         
         if (el) {
-            el.innerHTML = `<span>${player}</span>`; // Wrap in span for animation
+            el.innerHTML = `<span>${player}</span>`; 
             el.classList.add(player.toLowerCase(), 'taken');
         }
     }
@@ -546,7 +571,9 @@
     }
 
     function fireConfetti() {
-        confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#bb86fc', '#03dac6'] });
+        if(window.confetti) {
+            confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 }, colors: ['#bb86fc', '#03dac6'] });
+        }
     }
 
     /* --- LOGIC --- */
@@ -563,7 +590,6 @@
             }
             return true;
         };
-        // 3D Logic: Rows, Cols, Pillars, Diags
         for(let z=0; z<3; z++) for(let y=0; y<3; y++) if(checkLine(0,y,z, 1,0,0)) return true;
         for(let z=0; z<3; z++) for(let x=0; x<3; x++) if(checkLine(x,0,z, 0,1,0)) return true;
         for(let y=0; y<3; y++) for(let x=0; x<3; x++) if(checkLine(x,y,0, 0,0,1)) return true;
@@ -591,10 +617,7 @@
         } else {
             state.activeSubGrid = relativeIdx;
         }
-        
-        // Helper to visual
         highlightActiveSubGrids();
-
         return checkWinNormal(state.ultimateMacro, p);
     }
 
@@ -639,7 +662,6 @@
     }
 
     function findBestMove(moves) {
-        // Simple Minimax-lite
         for (let m of moves) { let temp = [...state.board]; temp[m] = 'O'; if (checkWinSim(temp, 'O')) return m; }
         for (let m of moves) { let temp = [...state.board]; temp[m] = 'X'; if (checkWinSim(temp, 'X')) return m; }
         if (state.variant === 'ultimate') {
@@ -665,57 +687,78 @@
         return result;
     }
 
-    function hostGame() {
-        const name = document.getElementById('mp-name').value || "Host";
-        state.p1Name = name;
-        
-        document.getElementById('mp-menu').style.display = 'none';
-        document.getElementById('mp-host-area').style.display = 'block';
+    function startHostingProcess() {
+        showScreen('screen-host-waiting');
+        document.getElementById('host-selected-mode').innerText = state.variant.toUpperCase();
 
         const customId = makeId(9);
         state.peer = new Peer(customId);
         
-        state.peer.on('open', (id) => { document.getElementById('host-code-display').innerText = id; });
-        state.peer.on('error', () => { state.peer.destroy(); hostGame(); }); // Retry if taken
+        state.peer.on('open', (id) => { 
+            document.getElementById('host-code-display').innerText = id; 
+        });
+        
+        state.peer.on('error', () => { 
+            state.peer.destroy(); 
+            startHostingProcess(); // Retry ID
+        });
 
         state.peer.on('connection', (c) => {
             state.conn = c;
-            setupConn();
-            // Send config
-            setTimeout(() => {
-                state.conn.send({ type: 'start', variant: state.variant, hostName: name });
+            document.getElementById('host-status').innerText = "Connecting...";
+            
+            // Wait for connection to be fully open before sending Start
+            c.on('open', () => {
+                c.send({ 
+                    type: 'start', 
+                    variant: state.variant, 
+                    hostName: state.p1Name 
+                });
                 state.myPlayer = 'X';
                 initGame(state.variant);
-            }, 1000);
+            });
         });
     }
 
     function joinGame() {
+        state.mode = 'join';
         const name = document.getElementById('mp-name').value || "Joiner";
         const code = document.getElementById('join-code').value.trim().toLowerCase();
+        
         if (!code || code.length !== 9) return alert("Please enter the 9-character code.");
         
-        state.p2Name = name; // You are P2
-        document.getElementById('mp-menu').style.display = 'none';
-        document.getElementById('mp-status').style.display = 'block';
+        state.p2Name = name; // Self is P2
+        // Show status but stay on menu until connected
+        const btn = document.querySelector('#screen-mp-menu button[onclick="joinGame()"]');
+        btn.innerText = "Connecting...";
+        btn.disabled = true;
 
         state.peer = new Peer(); 
         state.peer.on('open', () => {
             state.conn = state.peer.connect(code);
             setupConn();
         });
-        state.peer.on('error', () => { alert("Connection Failed"); location.reload(); });
+        state.peer.on('error', () => { 
+            alert("Connection Failed. Check Code."); 
+            location.reload(); 
+        });
     }
 
     function setupConn() {
+        state.conn.on('open', () => {
+             console.log("Connection Open.");
+        });
+
         state.conn.on('data', (data) => {
+            console.log("Received Data:", data);
+            
             if (data.type === 'start') {
-                // Received from Host
+                // Initialize Game on Joiner Side
                 state.variant = data.variant;
                 state.p1Name = data.hostName; 
-                state.p2Name = document.getElementById('mp-name').value; // Confirm my name
+                state.p2Name = document.getElementById('mp-name').value;
                 
-                // Send back my name
+                // Ack back
                 state.conn.send({ type: 'name-ack', name: state.p2Name });
                 
                 state.myPlayer = 'O'; 
@@ -731,12 +774,15 @@
             }
             if (data.type === 'restart') initGame(state.variant);
         });
+        
         state.conn.on('close', () => alert("Opponent Disconnected"));
     }
 
     function triggerRestart() {
         initGame(state.variant);
-        if (state.mode === 'human' && state.conn) state.conn.send({ type: 'restart' });
+        if ((state.mode === 'host' || state.mode === 'join') && state.conn) {
+            state.conn.send({ type: 'restart' });
+        }
     }
 
 </script>
