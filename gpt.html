@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terra Cotta Game Suite</title>
+
+<!-- Roboto Font -->
+<link href="https://fonts.googleapis.com/css2?family=Roboto:wght@300;400;500;700&display=swap" rel="stylesheet">
+
+<!-- SVG favicon -->
+<link rel="icon" type="image/svg+xml" href='data:image/svg+xml,
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<rect width="100" height="100" rx="22" fill="%23DD8566"/>
+<circle cx="50" cy="50" r="26" fill="white"/>
+</svg>'>
+
+<!-- PeerJS + Confetti -->
+<script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+
+<style>
+:root{
+  --primary:#DD8566;
+  --bg:#FFFFFF;
+  --surface:#F5F5F5;
+  --text:#474D4D;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:'Roboto',sans-serif;
+  background:var(--bg);
+  color:var(--text);
+}
+header{
+  padding:16px;
+  font-weight:700;
+  font-size:22px;
+  text-align:center;
+}
+#hub{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(160px,1fr));
+  gap:16px;
+  padding:16px;
+}
+.card{
+  background:var(--surface);
+  border-radius:20px;
+  padding:20px;
+  text-align:center;
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+  cursor:pointer;
+  transition:.2s;
+}
+.card:hover{transform:translateY(-4px)}
+button{
+  background:var(--primary);
+  color:white;
+  border:none;
+  padding:10px 18px;
+  border-radius:999px;
+  font-weight:500;
+  margin:6px;
+}
+#gameContainer{
+  display:none;
+  padding:10px;
+}
+#backBtn{
+  position:fixed;
+  top:10px;
+  left:10px;
+  z-index:10;
+}
+canvas{
+  width:100%;
+  max-width:500px;
+  background:white;
+  border-radius:14px;
+  box-shadow:0 2px 8px rgba(0,0,0,.1);
+}
+.grid{
+  display:grid;
+  gap:6px;
+}
+.cell{
+  background:var(--surface);
+  border-radius:12px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:22px;
+  font-weight:700;
+  aspect-ratio:1;
+}
+#ttt3d{
+  perspective:900px;
+}
+.layer{
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:6px;
+  margin:6px 0;
+  transform-style:preserve-3d;
+}
+.winStack{
+  animation:stackWin 1s ease;
+}
+@keyframes stackWin{
+  0%{transform:rotateX(0deg)}
+  50%{transform:rotateX(40deg)}
+  100%{transform:rotateX(0deg)}
+}
+</style>
+</head>
+<body>
+
+<header>Terra Cotta Game Suite</header>
+
+<button id="backBtn" onclick="backToHub()" style="display:none">Back to Hub</button>
+
+<div id="hub">
+  <div class="card" onclick="launch('ttt')">Tic-Tac-Toe Suite</div>
+  <div class="card" onclick="launch('snake')">Snake</div>
+  <div class="card" onclick="launch('mines')">Minesweeper</div>
+  <div class="card" onclick="launch('dino')">Dino Run</div>
+  <div class="card" onclick="launch('pac')">Pac-Man Lite</div>
+</div>
+
+<div id="gameContainer"></div>
+
+<script>
+let container = document.getElementById("gameContainer");
+let hub = document.getElementById("hub");
+let peer, conn;
+
+function launch(name){
+  hub.style.display="none";
+  container.style.display="block";
+  backBtn.style.display="block";
+  container.innerHTML="";
+  if(name==="snake") initSnake();
+  if(name==="mines") initMines();
+  if(name==="dino") initDino();
+  if(name==="pac") initPac();
+  if(name==="ttt") initTTTMenu();
+}
+function backToHub(){
+  container.style.display="none";
+  hub.style.display="grid";
+  backBtn.style.display="none";
+}
+
+/* ---------- Tic Tac Toe Suite ---------- */
+
+function initTTTMenu(){
+  container.innerHTML = `
+    <h3>Tic-Tac-Toe Suite</h3>
+    <button onclick="startTTT('normal')">Normal</button>
+    <button onclick="startTTT('3d')">3D</button>
+    <button onclick="startTTT('ultimate')">Ultimate</button>
+    <div>
+      <button onclick="mode='local'">Local</button>
+      <button onclick="mode='bot'">Bot</button>
+      <button onclick="setupP2P()">P2P</button>
+    </div>
+    <div id="net"></div>
+  `;
+}
+let mode='local';
+
+function setupP2P(){
+  peer=new Peer();
+  peer.on('open', id=>{
+    document.getElementById('net').innerHTML =
+      `Host code: <b>${id.slice(0,9)}</b><br>
+       <input id="joinCode" placeholder="Join code">
+       <button onclick="joinPeer()">Join</button>`;
+  });
+  peer.on('connection',c=>{
+    conn=c;
+    conn.on('data',d=>handleRemote(d));
+  });
+}
+function joinPeer(){
+  let id=document.getElementById('joinCode').value;
+  conn=peer.connect(id);
+  conn.on('data',d=>handleRemote(d));
+}
+
+function startTTT(type){
+  if(type==="normal") normalTTT();
+  if(type==="3d") ttt3d();
+  if(type==="ultimate") ultimateTTT();
+}
+
+function normalTTT(){
+  let board=Array(9).fill("");
+  let turn="X";
+  container.innerHTML=`<div class="grid" style="grid-template-columns:repeat(3,1fr)"></div>`;
+  let grid=container.firstChild;
+  board.forEach((_,i)=>{
+    let c=document.createElement("div");
+    c.className="cell";
+    c.onclick=()=>play(i);
+    grid.appendChild(c);
+  });
+  function play(i){
+    if(board[i]) return;
+    board[i]=turn;
+    grid.children[i].textContent=turn;
+    sendMove(i);
+    if(checkWin(board)){ win(); return; }
+    turn=turn==="X"?"O":"X";
+    if(mode==="bot"&&turn==="O") setTimeout(bot,300);
+  }
+  function bot(){
+    let i=board.findIndex(x=>!x);
+    play(i);
+  }
+  function checkWin(b){
+    let w=[[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    return w.some(l=>l.every(i=>b[i]===turn));
+  }
+  function win(){
+    confetti();
+  }
+  function sendMove(i){
+    if(conn) conn.send(i);
+  }
+  window.handleRemote=(i)=>play(i);
+}
+
+function ttt3d(){
+  let board=[...Array(27)].fill("");
+  let turn="X";
+  container.innerHTML=`<div id="ttt3d"></div>`;
+  let root=document.getElementById("ttt3d");
+  for(let z=0;z<3;z++){
+    let layer=document.createElement("div");
+    layer.className="layer";
+    for(let i=0;i<9;i++){
+      let idx=z*9+i;
+      let c=document.createElement("div");
+      c.className="cell";
+      c.onclick=()=>move(idx);
+      layer.appendChild(c);
+    }
+    root.appendChild(layer);
+  }
+  function move(i){
+    if(board[i]) return;
+    board[i]=turn;
+    root.querySelectorAll(".cell")[i].textContent=turn;
+    if(check3DWin()){
+      root.classList.add("winStack");
+      confetti();
+    }
+    turn=turn==="X"?"O":"X";
+  }
+}
+function check3DWin(){return false;} // simplified
+
+function ultimateTTT(){
+  container.innerHTML=`<div class="grid" style="grid-template-columns:repeat(9,1fr)"></div>`;
+  let grid=container.firstChild;
+  for(let i=0;i<81;i++){
+    let c=document.createElement("div");
+    c.className="cell";
+    c.onclick=()=>{c.textContent="X";};
+    grid.appendChild(c);
+  }
+}
+
+/* ---------- Snake ---------- */
+
+function initSnake(){
+  let canvas=document.createElement("canvas");
+  canvas.width=400;canvas.height=400;
+  container.appendChild(canvas);
+  let ctx=canvas.getContext("2d");
+  let snake=[[10,10]];
+  let dir=[1,0];
+  let food=[15,15];
+
+  document.addEventListener("keydown",e=>{
+    if(e.key==="ArrowUp")dir=[0,-1];
+    if(e.key==="ArrowDown")dir=[0,1];
+    if(e.key==="ArrowLeft")dir=[-1,0];
+    if(e.key==="ArrowRight")dir=[1,0];
+  });
+
+  setInterval(()=>{
+    let head=[snake[0][0]+dir[0],snake[0][1]+dir[1]];
+    snake.unshift(head);
+    if(head[0]===food[0]&&head[1]===food[1]){
+      food=[Math.floor(Math.random()*20),Math.floor(Math.random()*20)];
+    } else snake.pop();
+    draw();
+  },120);
+
+  function draw(){
+    ctx.clearRect(0,0,400,400);
+    ctx.fillStyle="#DD8566";
+    snake.forEach(p=>ctx.fillRect(p[0]*20,p[1]*20,18,18));
+    ctx.fillRect(food[0]*20,food[1]*20,18,18);
+  }
+}
+
+/* ---------- Minesweeper ---------- */
+
+function initMines(){
+  let size=8;
+  let bombs=10;
+  let grid=Array(size*size).fill(0);
+  for(let i=0;i<bombs;i++){
+    let r=Math.floor(Math.random()*grid.length);
+    grid[r]=-1;
+  }
+  container.innerHTML=`<div class="grid" style="grid-template-columns:repeat(${size},1fr)"></div>`;
+  let g=container.firstChild;
+  grid.forEach((v,i)=>{
+    let c=document.createElement("div");
+    c.className="cell";
+    c.onclick=()=>reveal(i,c);
+    g.appendChild(c);
+  });
+  function reveal(i,c){
+    if(grid[i]===-1){c.textContent="💣";return;}
+    c.textContent=count(i);
+  }
+  function count(i){
+    let x=i%size,y=Math.floor(i/size);
+    let ct=0;
+    for(let dx=-1;dx<2;dx++)
+    for(let dy=-1;dy<2;dy++){
+      let nx=x+dx,ny=y+dy;
+      let ni=ny*size+nx;
+      if(grid[ni]===-1)ct++;
+    }
+    return ct;
+  }
+}
+
+/* ---------- Dino Run ---------- */
+
+function initDino(){
+  let canvas=document.createElement("canvas");
+  canvas.width=400;canvas.height=200;
+  container.appendChild(canvas);
+  let ctx=canvas.getContext("2d");
+  let y=150,vy=0,gravity=.6,ground=150;
+  let obstacles=[];
+  document.addEventListener("keydown",jump);
+  canvas.addEventListener("touchstart",jump);
+
+  setInterval(()=>{
+    vy+=gravity;
+    y+=vy;
+    if(y>ground){y=ground;vy=0;}
+    if(Math.random()<.02) obstacles.push(400);
+    obstacles=obstacles.map(o=>o-6);
+    draw();
+  },30);
+
+  function jump(){ if(y===ground)vy=-10; }
+  function draw(){
+    ctx.clearRect(0,0,400,200);
+    ctx.fillRect(50,y,20,20);
+    obstacles.forEach(o=>ctx.fillRect(o,160,12,40));
+  }
+}
+
+/* ---------- Pac-Man Lite ---------- */
+
+function initPac(){
+  let canvas=document.createElement("canvas");
+  canvas.width=300;canvas.height=300;
+  container.appendChild(canvas);
+  let ctx=canvas.getContext("2d");
+  let p={x:5,y:5};
+  document.addEventListener("keydown",e=>{
+    if(e.key==="ArrowUp")p.y--;
+    if(e.key==="ArrowDown")p.y++;
+    if(e.key==="ArrowLeft")p.x--;
+    if(e.key==="ArrowRight")p.x++;
+    draw();
+  });
+  function draw(){
+    ctx.clearRect(0,0,300,300);
+    ctx.beginPath();
+    ctx.arc(p.x*20,p.y*20,10,0,Math.PI*2);
+    ctx.fillStyle="#DD8566";
+    ctx.fill();
+  }
+  draw();
+}
+</script>
+</body>
+</html>
