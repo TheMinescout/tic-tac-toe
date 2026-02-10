@@ -2,7 +2,7 @@
 
 Welcome to the **Terra Cotta Game Suite**, a collection of classic arcade and logic games bundled into a single, lightweight HTML file.
 
-**[✨ Play the Official Version Live](https://theminescout.github.io/tic-tac-toe/index.html)**
+**[✨ Play the Official Version Live](https://theminescout.github.io/terra-cotta-game-suite/index.html)**
 
 This repository serves two purposes:
 1.  To host the **Official Game Suite**, a polished, fully functional web app.
@@ -43,9 +43,9 @@ Click the links below to **play the raw, unedited outputs** of each AI and see h
 
 | AI Model | Play Live | Source Code | Notes |
 | :--- | :--- | :--- | :--- |
-| **Google Gemini** | [**Play gemini.html**](https://theminescout.github.io/tic-tac-toe/gemini.html) | [View Code](./gemini.html) | See how Gemini handled the 3D logic and CSS. |
-| **ChatGPT** | [**Play gpt.html**](https://theminescout.github.io/tic-tac-toe/gpt.html) | [View Code](./gpt.html) | Check OpenAI's approach to the single-file constraint. |
-| **Claude** | [**Play claude.html**](https://theminescout.github.io/tic-tac-toe/claude.html) | [View Code](./claude.html) | Observe Anthropic's take on the Terra Cotta aesthetic. |
+| **Google Gemini** | [**Play gemini.html**](https://theminescout.github.io/terra-cotta-game-suite/gemini.html) | [View Code](./gemini.html) | See how Gemini handled the 3D logic and CSS. |
+| **ChatGPT** | [**Play gpt.html**](https://theminescout.github.io/terra-cotta-game-suite/gpt.html) | [View Code](./gpt.html) | Check OpenAI's approach to the single-file constraint. |
+| **Claude** | [**Play claude.html**](https://theminescout.github.io/terra-cotta-game-suite/claude.html) | [View Code](./claude.html) | Observe Anthropic's take on the Terra Cotta aesthetic. |
 
 ---
 
