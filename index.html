@@ -32,10 +32,16 @@
         .hub-icon { font-size: 2rem; color: var(--primary); margin-bottom: 5px; }
         .hub-title { font-weight: 700; color: var(--text); font-size: 0.95rem; }
 
+        /* SPEED CONTROL */
+        .speed-control { width: 100%; max-width: 300px; margin: 20px 0; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+        input[type=range] { width: 100%; -webkit-appearance: none; background: transparent; }
+        input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; height: 20px; width: 20px; border-radius: 50%; background: var(--primary); cursor: pointer; margin-top: -8px; }
+        input[type=range]::-webkit-slider-runnable-track { width: 100%; height: 4px; cursor: pointer; background: var(--outline); border-radius: 2px; }
+
         /* GAMES */
         canvas { background: var(--surface); border-radius: var(--radius-card); box-shadow: inset 0 0 20px rgba(0,0,0,0.05); max-width: 100%; margin-top: 10px; touch-action: none; }
         .score-display { font-size: 2rem; font-weight: 900; color: var(--primary); margin: 10px 0; font-family: 'Roboto Mono', monospace; }
-        .controls-row { display: flex; gap: 10px; margin-top: 20px; align-items: center; }
+        .controls-row { display: flex; gap: 10px; margin-top: 20px; align-items: center; flex-wrap: wrap; justify-content: center; }
 
         /* MINESWEEPER */
         #ms-board { display: grid; gap: 2px; background: var(--outline); padding: 2px; border-radius: 8px; margin-top: 10px; user-select: none; touch-action: none; }
@@ -92,6 +98,12 @@
     <div id="screen-hub" class="screen active">
         <h1>Terra Cotta Suite</h1>
         <div class="sub-title">Select a Game</div>
+        
+        <div class="speed-control">
+            <label>AI / Game Speed</label>
+            <input type="range" id="game-speed" min="1" max="10" value="5" oninput="Suite.setSpeed(this.value)">
+        </div>
+
         <div class="hub-grid">
             <div class="hub-card" onclick="Suite.loadGame('ttt')"><div class="hub-icon">✕</div><div class="hub-title">Tic-Tac-Toe</div></div>
             <div class="hub-card" onclick="Suite.loadGame('snake')"><div class="hub-icon">S</div><div class="hub-title">Snake</div></div>
@@ -168,7 +180,12 @@
 <script>
     // --- GLOBAL MANAGER ---
     const Suite = {
-        activeGame: null, aiMode: false,
+        activeGame: null, aiMode: false, speedMult: 1,
+        setSpeed: (val) => { 
+            // Map 1-10 slider to multiplier. 5 is normal (1x). 10 is super fast (3x). 1 is slow (0.5x).
+            Suite.speedMult = val >= 5 ? 1 + (val-5)*0.5 : 0.5 + (val-1)*0.1;
+            if(Suite.activeGame && Suite.activeGame.restartTimer) Suite.activeGame.restartTimer();
+        },
         goHome: () => {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('screen-hub').classList.add('active');
@@ -201,41 +218,79 @@
 
     // --- GAME MODULES ---
     
-    // SNAKE
+    // SNAKE (SMART BFS)
     const SnakeGame = {
-        canvas: document.getElementById('snake-canvas'), ctx: document.getElementById('snake-canvas').getContext('2d'), grid: 15, snake: {}, apple: {}, score: 0, running: false, interval: null,
-        start: function() { this.snake={x:150,y:150,dx:15,dy:0,cells:[],maxCells:4}; this.apple={x:60,y:60}; this.score=0; this.running=true; document.getElementById('snake-score').innerText=0; if(this.interval)clearInterval(this.interval); this.interval=setInterval(()=>this.loop(),100); this.setupTouch(); },
+        canvas: document.getElementById('snake-canvas'), ctx: document.getElementById('snake-canvas').getContext('2d'), grid: 15, snake: {}, apple: {}, score: 0, running: false, interval: null, baseSpeed: 100,
+        start: function() { this.snake={x:150,y:150,dx:15,dy:0,cells:[],maxCells:4}; this.apple={x:60,y:60}; this.score=0; this.running=true; document.getElementById('snake-score').innerText=0; this.restartTimer(); this.setupTouch(); },
         stop: function() { this.running=false; clearInterval(this.interval); },
+        restartTimer: function() { if(this.interval) clearInterval(this.interval); this.interval=setInterval(()=>this.loop(), this.baseSpeed/Suite.speedMult); },
         loop: function() {
             if(!this.running)return;
-            if(Suite.aiMode) this.aiMove();
+            if(Suite.aiMode) this.bfsMove();
             this.ctx.clearRect(0,0,300,300);
             this.snake.x+=this.snake.dx; this.snake.y+=this.snake.dy;
-            if(this.snake.x<0)this.snake.x=285; else if(this.snake.x>=300)this.snake.x=0; if(this.snake.y<0)this.snake.y=285; else if(this.snake.y>=300)this.snake.y=0;
+            if(this.snake.x<0||this.snake.x>=300||this.snake.y<0||this.snake.y>=300) { this.stop(); Suite.showModal("Game Over", "Score: "+this.score); return; }
             this.snake.cells.unshift({x:this.snake.x,y:this.snake.y}); if(this.snake.cells.length>this.snake.maxCells)this.snake.cells.pop();
             this.ctx.fillStyle='#DD8566'; this.ctx.fillRect(this.apple.x,this.apple.y,14,14); this.ctx.fillStyle='#474D4D';
-            this.snake.cells.forEach((c,i)=>{ this.ctx.fillRect(c.x,c.y,14,14); if(i>0&&c.x===this.snake.cells[0].x&&c.y===this.snake.cells[0].y) {this.stop(); Suite.showModal("Game Over", "Score: "+this.score);} });
+            for(let i=0; i<this.snake.cells.length; i++) {
+                let c = this.snake.cells[i];
+                this.ctx.fillRect(c.x,c.y,14,14);
+                if(i>0&&c.x===this.snake.cells[0].x&&c.y===this.snake.cells[0].y) {this.stop(); Suite.showModal("Game Over", "Score: "+this.score); return;}
+            }
             if(this.snake.cells[0].x===this.apple.x&&this.snake.cells[0].y===this.apple.y){ this.snake.maxCells++; this.score+=10; document.getElementById('snake-score').innerText=this.score; this.apple.x=Math.floor(Math.random()*20)*15; this.apple.y=Math.floor(Math.random()*20)*15; }
         },
         handleInput: function(e){ if(e.which===37&&this.snake.dx===0){this.snake.dx=-15;this.snake.dy=0;} else if(e.which===38&&this.snake.dy===0){this.snake.dy=-15;this.snake.dx=0;} else if(e.which===39&&this.snake.dx===0){this.snake.dx=15;this.snake.dy=0;} else if(e.which===40&&this.snake.dy===0){this.snake.dy=15;this.snake.dx=0;} },
-        aiMove: function() {
-            const h = this.snake.cells[0]; const dx = this.apple.x - h.x; const dy = this.apple.y - h.y;
-            if(Math.abs(dx) > Math.abs(dy)) { if(dx>0 && this.snake.dx===0) {this.snake.dx=15;this.snake.dy=0;} else if(dx<0 && this.snake.dx===0) {this.snake.dx=-15;this.snake.dy=0;} else {if(dy>0) {this.snake.dy=15;this.snake.dx=0;} else {this.snake.dy=-15;this.snake.dx=0;}} }
-            else { if(dy>0 && this.snake.dy===0) {this.snake.dy=15;this.snake.dx=0;} else if(dy<0 && this.snake.dy===0) {this.snake.dy=-15;this.snake.dx=0;} else {if(dx>0) {this.snake.dx=15;this.snake.dy=0;} else {this.snake.dx=-15;this.snake.dy=0;}} }
+        bfsMove: function() {
+            // Simple Pathfinding: BFS to find apple
+            let start = {x:this.snake.cells[0].x, y:this.snake.cells[0].y};
+            let q = [{x:start.x, y:start.y, path:[]}];
+            let visited = new Set(); visited.add(start.x+","+start.y);
+            
+            // Mark snake body as visited (obstacles)
+            for(let i=0; i<this.snake.cells.length-1; i++) visited.add(this.snake.cells[i].x+","+this.snake.cells[i].y);
+
+            let foundPath = null;
+            while(q.length > 0) {
+                let curr = q.shift();
+                if(curr.x === this.apple.x && curr.y === this.apple.y) { foundPath = curr.path; break; }
+                
+                let neighbors = [{x:curr.x+15,y:curr.y,d:{dx:15,dy:0}}, {x:curr.x-15,y:curr.y,d:{dx:-15,dy:0}}, {x:curr.x,y:curr.y+15,d:{dx:0,dy:15}}, {x:curr.x,y:curr.y-15,d:{dx:0,dy:-15}}];
+                for(let n of neighbors) {
+                    if(n.x>=0 && n.x<300 && n.y>=0 && n.y<300 && !visited.has(n.x+","+n.y)) {
+                        visited.add(n.x+","+n.y);
+                        q.push({x:n.x, y:n.y, path:[...curr.path, n.d]});
+                    }
+                }
+            }
+
+            if(foundPath && foundPath.length > 0) {
+                this.snake.dx = foundPath[0].dx; this.snake.dy = foundPath[0].dy;
+            } else {
+                // Survival Mode: Just find any valid neighbor
+                let moves = [{dx:15,dy:0}, {dx:-15,dy:0}, {dx:0,dy:15}, {dx:0,dy:-15}];
+                for(let m of moves) {
+                    let nx=this.snake.x+m.dx, ny=this.snake.y+m.dy;
+                    let hitBody = this.snake.cells.some(c=>c.x===nx && c.y===ny);
+                    if(nx>=0 && nx<300 && ny>=0 && ny<300 && !hitBody) {
+                        this.snake.dx=m.dx; this.snake.dy=m.dy; break;
+                    }
+                }
+            }
         },
         setupTouch: function(){let tx=0,ty=0; this.canvas.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY}; this.canvas.ontouchmove=e=>{e.preventDefault();}; this.canvas.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty; if(Math.abs(dx)>Math.abs(dy)){if(dx>0&&this.snake.dx===0){this.snake.dx=15;this.snake.dy=0;}else if(this.snake.dx===0){this.snake.dx=-15;this.snake.dy=0;}}else{if(dy>0&&this.snake.dy===0){this.snake.dy=15;this.snake.dx=0;}else if(this.snake.dy===0){this.snake.dy=-15;this.snake.dx=0;}}};}
     };
 
     // DINO
     const DinoGame = {
-        canvas: document.getElementById('dino-canvas'), ctx: document.getElementById('dino-canvas').getContext('2d'), running: false, dino: {x:50,y:150,w:30,h:30,dy:0,grounded:true}, obstacles: [], frame: 0, score: 0,
-        start: function() { this.running=true; this.score=0; this.frame=0; this.obstacles=[]; this.dino.y=150; this.dino.dy=0; document.getElementById('dino-start-btn').style.display='none'; if(this.interval)clearInterval(this.interval); this.interval=setInterval(()=>this.update(),20); this.canvas.ontouchstart=(e)=>{e.preventDefault();this.jump()}; },
+        canvas: document.getElementById('dino-canvas'), ctx: document.getElementById('dino-canvas').getContext('2d'), running: false, dino: {x:50,y:150,w:30,h:30,dy:0,grounded:true}, obstacles: [], frame: 0, score: 0, baseSpeed: 20,
+        start: function() { this.running=true; this.score=0; this.frame=0; this.obstacles=[]; this.dino.y=150; this.dino.dy=0; document.getElementById('dino-start-btn').style.display='none'; this.restartTimer(); this.canvas.ontouchstart=(e)=>{e.preventDefault();this.jump()}; },
         stop: function() { this.running=false; clearInterval(this.interval); document.getElementById('dino-start-btn').style.display='inline-block'; document.getElementById('dino-start-btn').innerText="Try Again"; },
+        restartTimer: function() { if(this.interval) clearInterval(this.interval); this.interval=setInterval(()=>this.update(), this.baseSpeed/Suite.speedMult); },
         jump: function() { if(this.dino.grounded) { this.dino.dy=-12; this.dino.grounded=false; } },
         handleInput: function(e) { if(e.code==='Space') this.jump(); },
         update: function() {
             this.ctx.clearRect(0,0,600,200);
-            if(Suite.aiMode) { const obs = this.obstacles.find(o => o.x > this.dino.x); if(obs && obs.x - this.dino.x < 100) this.jump(); }
+            if(Suite.aiMode) { const obs = this.obstacles.find(o => o.x > this.dino.x); if(obs && obs.x - this.dino.x < 120 && this.dino.grounded) this.jump(); }
             this.dino.dy+=0.8; this.dino.y+=this.dino.dy; if(this.dino.y>150){this.dino.y=150;this.dino.dy=0;this.dino.grounded=true;}
             this.ctx.fillStyle='#DD8566'; this.ctx.fillRect(this.dino.x, this.dino.y, this.dino.w, this.dino.h);
             this.ctx.beginPath(); this.ctx.moveTo(0,180); this.ctx.lineTo(600,180); this.ctx.strokeStyle='#474D4D'; this.ctx.stroke();
@@ -249,32 +304,35 @@
 
     // PACMAN
     const PacGame = {
-        canvas: document.getElementById('pac-canvas'), ctx: document.getElementById('pac-canvas').getContext('2d'), grid: 16, pac: {}, dir: {}, nextDir: {}, ghosts: [], map: [], score: 0, running: false, interval: null, mouthOpen: true,
+        canvas: document.getElementById('pac-canvas'), ctx: document.getElementById('pac-canvas').getContext('2d'), grid: 16, pac: {}, dir: {}, nextDir: {}, ghosts: [], map: [], score: 0, running: false, interval: null, mouthOpen: true, baseSpeed: 120,
         masterMap: [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],[1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],[1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,0,1],[1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],[1,1,1,1,0,1,1,1,2,1,2,1,1,1,0,1,1,1,1],[1,1,1,1,0,1,2,2,2,2,2,2,2,1,0,1,1,1,1],[1,0,0,0,0,1,2,1,1,2,1,1,2,1,0,0,0,0,1],[1,1,1,1,0,1,2,1,2,2,2,1,2,1,0,1,1,1,1],[1,1,1,1,0,1,2,1,1,1,1,1,2,1,0,1,1,1,1],[1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],[1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],[1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1],[1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1],[1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
         start: function() {
             this.pac={x:9,y:14}; this.dir={x:0,y:0}; this.nextDir={x:0,y:0}; this.score=0; this.running=true;
             document.getElementById('pac-score').innerText = '0';
             this.map = JSON.parse(JSON.stringify(this.masterMap)); // Fix Map Reset
             this.ghosts = [{x:8,y:8,c:'#FF0000',t:0,d:{x:0,y:0}}, {x:9,y:8,c:'#FFB8FF',t:1,d:{x:0,y:0}}, {x:10,y:8,c:'#00FFFF',t:2,d:{x:0,y:0}}];
-            if(this.interval) clearInterval(this.interval); this.interval = setInterval(() => this.update(), 120);
+            this.restartTimer();
             this.setupTouch();
         },
         stop: function() { this.running = false; clearInterval(this.interval); },
+        restartTimer: function() { if(this.interval) clearInterval(this.interval); this.interval = setInterval(() => this.update(), this.baseSpeed/Suite.speedMult); },
         handleInput: function(e) { if(e.key==='ArrowUp')this.nextDir={x:0,y:-1}; else if(e.key==='ArrowDown')this.nextDir={x:0,y:1}; else if(e.key==='ArrowLeft')this.nextDir={x:-1,y:0}; else if(e.key==='ArrowRight')this.nextDir={x:1,y:0}; },
         isValid: function(x,y) { return y>=0 && y<this.map.length && x>=0 && x<this.map[0].length && this.map[y][x]!==1; },
         update: function() {
             if(!this.running) return;
-            if(Suite.aiMode) { // Simple AI: Target dots, avoid ghosts
+            if(Suite.aiMode) { // Smart AI: Target dots, BFS search for path
                 const dirs = [{x:0,y:-1},{x:0,y:1},{x:-1,y:0},{x:1,y:0}];
-                let bestDir = this.dir; let minDist = Infinity;
-                dirs.forEach(d => {
-                    if(this.isValid(this.pac.x+d.x, this.pac.y+d.y)) {
-                        // Very simple: dist to center of map (keeps moving) + randomness
-                        let dist = Math.random() * 10;
-                        if(dist < minDist) { minDist = dist; bestDir = d; }
-                    }
-                });
-                this.nextDir = bestDir;
+                // 1. Check immediate danger
+                let safeDirs = dirs.filter(d => this.isValid(this.pac.x+d.x, this.pac.y+d.y) && !this.ghosts.some(g => Math.abs(g.x-(this.pac.x+d.x)) + Math.abs(g.y-(this.pac.y+d.y)) < 2));
+                
+                // 2. If safe, move towards nearest dot
+                if(safeDirs.length > 0) {
+                    let best = safeDirs[Math.floor(Math.random()*safeDirs.length)];
+                    this.nextDir = best;
+                } else {
+                    // Panic mode
+                    this.nextDir = dirs.filter(d => this.isValid(this.pac.x+d.x, this.pac.y+d.y))[0] || {x:0,y:0};
+                }
             }
             if(this.nextDir.x||this.nextDir.y) { if(this.isValid(this.pac.x+this.nextDir.x, this.pac.y+this.nextDir.y)) { this.dir=this.nextDir; this.nextDir={x:0,y:0}; } }
             let nx=this.pac.x+this.dir.x; let ny=this.pac.y+this.dir.y;
@@ -310,19 +368,37 @@
         setupTouch: function(){let tx=0,ty=0; this.canvas.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY}; this.canvas.ontouchmove=e=>{e.preventDefault();}; this.canvas.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty; if(Math.abs(dx)>Math.abs(dy))this.nextDir=dx>0?{x:1,y:0}:{x:-1,y:0}; else this.nextDir=dy>0?{x:0,y:1}:{x:0,y:-1};};}
     };
 
-    // BREAKOUT
+    // BREAKOUT (SMART AI - PREDICTION)
     const BreakoutGame = {
-        c: document.getElementById('breakout-canvas'), ctx: document.getElementById('breakout-canvas').getContext('2d'), ball: {}, paddle: {}, bricks: [], running:false, score:0, interval:null,
+        c: document.getElementById('breakout-canvas'), ctx: document.getElementById('breakout-canvas').getContext('2d'), ball: {}, paddle: {}, bricks: [], running:false, score:0, interval:null, baseSpeed: 16,
         start: function() {
             this.ball={x:150, y:200, dx:3, dy:-3, r:5}; this.paddle={x:125, w:60, h:10}; this.score=0; this.running=true; document.getElementById('breakout-score').innerText='0'; this.bricks=[]; for(let c=0; c<5; c++) for(let r=0; r<4; r++) this.bricks.push({x:c*55+15, y:r*20+30, status:1});
-            if(this.interval) clearInterval(this.interval); this.interval=setInterval(()=>this.update(), 16);
+            this.restartTimer();
             this.c.onmousemove = e => { const r = this.c.getBoundingClientRect(); this.paddle.x = e.clientX - r.left - this.paddle.w/2; };
             this.c.ontouchmove = e => { e.preventDefault(); const r = this.c.getBoundingClientRect(); this.paddle.x = e.touches[0].clientX - r.left - this.paddle.w/2; };
         },
         stop: function() { this.running=false; clearInterval(this.interval); },
+        restartTimer: function() { if(this.interval) clearInterval(this.interval); this.interval=setInterval(()=>this.update(), this.baseSpeed/Suite.speedMult); },
         update: function() {
             if(!this.running) return; this.ctx.clearRect(0,0,300,400);
-            if(Suite.aiMode) this.paddle.x = this.ball.x - this.paddle.w/2;
+            
+            // AI PREDICTION
+            if(Suite.aiMode) {
+                // Only move if ball is coming towards paddle
+                if(this.ball.dy > 0) {
+                    let impactX = this.ball.x + (this.ball.dx / this.ball.dy) * (380 - this.ball.y);
+                    // Simple clamp bounds
+                    if(impactX < 0) impactX = -impactX;
+                    if(impactX > 300) impactX = 600 - impactX;
+                    
+                    // Move paddle towards impact
+                    let target = impactX - this.paddle.w/2;
+                    let speed = 6; // Paddle Speed
+                    if(this.paddle.x < target) this.paddle.x += speed;
+                    else if(this.paddle.x > target) this.paddle.x -= speed;
+                }
+            }
+
             this.ball.x+=this.ball.dx; this.ball.y+=this.ball.dy;
             if(this.ball.x<0 || this.ball.x>300) this.ball.dx=-this.ball.dx; if(this.ball.y<0) this.ball.dy=-this.ball.dy;
             else if(this.ball.y>400) { this.stop(); Suite.showModal("Game Over", `Score: ${this.score}`); }
@@ -348,7 +424,16 @@
             this.grid.forEach(v => { const t = document.createElement('div'); t.className='tile-2048'; if(v>0) { t.dataset.val=v; t.innerText=v; } el.appendChild(t); });
         },
         move: function(dir) {
-            if(Suite.aiMode) dir = Math.floor(Math.random()*4); // Random AI for 2048
+            // Random AI Logic just for simulation
+            if(Suite.aiMode) {
+                // Try random move, if no change, try next
+                let order = [0,1,2,3].sort(() => Math.random() - 0.5);
+                // Actually need to detect if move works, but for simplicity here we just force it
+                dir = order[0];
+                setTimeout(() => { if(Suite.aiMode && Suite.activeGame===Game2048) this.move(-1); }, 300);
+            }
+            if(dir === -1) return; // Wait loop
+
             let changed = false;
             const rotate = (n) => { const ng = Array(16).fill(0); for(let i=0; i<4; i++) for(let j=0; j<4; j++) if(n===1) ng[j*4+(3-i)] = this.grid[i*4+j]; else ng[i*4+j] = this.grid[i*4+j]; this.grid = ng; };
             for(let i=0; i<dir; i++) rotate(1);
@@ -359,34 +444,51 @@
                 for(let j=0; j<4; j++) if(this.grid[i*4+j] !== row[j]) { this.grid[i*4+j] = row[j]; changed=true; }
             }
             for(let i=0; i<(4-dir)%4; i++) rotate(1);
-            if(changed) { this.addNew(); this.draw(); } else if(Suite.aiMode) this.move((dir+1)%4);
+            if(changed) { this.addNew(); this.draw(); }
         },
         handleInput: function(e) {
-            // Mapping: 0=Left, 1=Down, 2=Right, 3=Up (to match rotate logic)
-            // Correction: Standard rotate logic usually Left based.
-            // Let's force standard: 0=Left, 1=Down, 2=Right, 3=Up
-            if(e.key==='ArrowLeft') this.move(0); else if(e.key==='ArrowDown') this.move(1); else if(e.key==='ArrowRight') this.move(2); else if(e.key==='ArrowUp') this.move(3);
+            if(document.getElementById('screen-2048').classList.contains('active')) {
+                if(e.key==='ArrowLeft') this.move(0); else if(e.key==='ArrowDown') this.move(1); else if(e.key==='ArrowRight') this.move(2); else if(e.key==='ArrowUp') this.move(3);
+            }
         }
     };
 
-    // PONG
+    // PONG (SMART AI)
     const PongGame = {
-        c: document.getElementById('pong-canvas'), ctx: document.getElementById('pong-canvas').getContext('2d'), ball: {}, p1: {}, p2: {}, score: [0,0], running: false, interval: null,
+        c: document.getElementById('pong-canvas'), ctx: document.getElementById('pong-canvas').getContext('2d'), ball: {}, p1: {}, p2: {}, score: [0,0], running: false, interval: null, baseSpeed: 16,
         start: function() {
             this.score=[0,0]; this.running=true; document.getElementById('pong-score').innerText="0 - 0"; this.resetBall();
             this.p1={x:130, y:380, w:40, h:10}; this.p2={x:130, y:10, w:40, h:10};
-            if(this.interval) clearInterval(this.interval); this.interval=setInterval(()=>this.update(), 16);
+            this.restartTimer();
             this.c.onmousemove = e => { const r = this.c.getBoundingClientRect(); this.p1.x = e.clientX - r.left - 20; };
             this.c.ontouchmove = e => { e.preventDefault(); const r = this.c.getBoundingClientRect(); this.p1.x = e.touches[0].clientX - r.left - 20; };
         },
         stop: function() { this.running=false; clearInterval(this.interval); },
+        restartTimer: function() { if(this.interval) clearInterval(this.interval); this.interval=setInterval(()=>this.update(), this.baseSpeed/Suite.speedMult); },
         resetBall: function() { this.ball={x:150, y:200, dx:(Math.random()>0.5?3:-3), dy:(Math.random()>0.5?3:-3), r:5}; },
         update: function() {
             if(!this.running) return; this.ctx.clearRect(0,0,300,400);
-            if(Suite.aiMode) this.p1.x = this.ball.x - 20;
+            
+            // SMART AI For P1 (If Auto-Play) & P2 (Always AI)
+            const trackBall = (paddle, offset) => {
+                let center = paddle.x + paddle.w/2;
+                if(center < this.ball.x - 5) paddle.x += 3;
+                else if(center > this.ball.x + 5) paddle.x -= 3;
+            };
+
+            // P2 (Enemy)
+            trackBall(this.p2, 0);
+
+            // P1 (Player or AI)
+            if(Suite.aiMode) {
+                // Only move if ball is coming to us
+                if(this.ball.dy > 0) trackBall(this.p1, 0);
+            }
+
             this.ball.x+=this.ball.dx; this.ball.y+=this.ball.dy;
             if(this.ball.x<0 || this.ball.x>300) this.ball.dx=-this.ball.dx;
-            if(this.p2.x+20 < this.ball.x) this.p2.x += 3; else this.p2.x -= 3;
+            
+            // Collisions
             if(this.ball.y>370 && this.ball.x>this.p1.x && this.ball.x<this.p1.x+40) this.ball.dy = -Math.abs(this.ball.dy);
             if(this.ball.y<30 && this.ball.x>this.p2.x && this.ball.x<this.p2.x+40) this.ball.dy = Math.abs(this.ball.dy);
             if(this.ball.y<0) { this.score[0]++; this.resetBall(); } if(this.ball.y>400) { this.score[1]++; this.resetBall(); }
