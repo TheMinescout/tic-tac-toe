@@ -27,6 +27,8 @@
             font-family: 'Roboto', sans-serif; background-color: var(--bg); color: var(--text);
             margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
             padding: 20px; box-sizing: border-box; overflow-x: hidden; -webkit-tap-highlight-color: transparent;
+            /* Prevent bounce scroll on mobile */
+            overscroll-behavior: none;
         }
 
         /* --- GLOBAL UI --- */
@@ -68,11 +70,13 @@
             background: var(--surface); border-radius: var(--radius-card);
             box-shadow: inset 0 0 20px rgba(0,0,0,0.05);
             max-width: 100%; margin-top: 10px;
+            /* CRITICAL: Prevents page scrolling when touching the canvas */
+            touch-action: none; 
         }
         .score-display { font-size: 2rem; font-weight: 900; color: var(--primary); margin: 10px 0; font-family: 'Roboto Mono', monospace; }
 
         /* --- MINESWEEPER STYLES --- */
-        #ms-board { display: grid; gap: 2px; background: var(--outline); padding: 2px; border-radius: 8px; margin-top: 10px; }
+        #ms-board { display: grid; gap: 2px; background: var(--outline); padding: 2px; border-radius: 8px; margin-top: 10px; user-select: none; -webkit-user-select: none; }
         .ms-cell {
             width: 30px; height: 30px; background: var(--bg); display: flex; align-items: center; justify-content: center;
             font-weight: bold; cursor: pointer; user-select: none; font-family: 'Roboto Mono'; font-size: 1.2rem;
@@ -108,7 +112,7 @@
         #board-normal { display: grid; grid-template-columns: repeat(3, 80px); grid-template-rows: repeat(3, 80px); gap: 4px; background: var(--outline); padding: 4px; border-radius: 12px; }
         #board-normal .ttt-cell { font-size: 3rem; }
 
-        /* 3D Board - NEW STACKED STYLE */
+        /* 3D Board */
         #board-3d { 
             perspective: 1000px; 
             margin-top: 40px; 
@@ -258,7 +262,7 @@
         <div id="ttt-menu">
             <div class="btn-group">
                 <button onclick="TTT.setup('local')">Pass & Play</button>
-                <button onclick="TTT.setup('bot')">vs Bot</button>
+                <button onclick="TTT.setup('bot-diff')">vs Bot</button>
                 <button onclick="TTT.setup('mp')">Multiplayer</button>
             </div>
             
@@ -268,6 +272,16 @@
             </div>
 
             <button class="back-btn" onclick="Suite.goHome()">Exit to Hub</button>
+        </div>
+
+        <div id="ttt-bot-diff" style="display:none; text-align:center;">
+            <h3>Bot Difficulty</h3>
+            <div class="btn-group">
+                <button onclick="TTT.setDifficulty('easy')">Easy</button>
+                <button onclick="TTT.setDifficulty('medium')">Medium</button>
+                <button onclick="TTT.setDifficulty('hard')">Hard</button>
+            </div>
+            <button class="back-btn" onclick="TTT.showMenu()">Back</button>
         </div>
 
         <div id="ttt-mp-setup" style="display:none; text-align:center;">
@@ -327,6 +341,17 @@
     </div>
 
 <script>
+    // --- PREVENT SCROLLING LOGIC ---
+    window.addEventListener("keydown", function(e) {
+        // Space and arrow keys
+        if([32, 37, 38, 39, 40].indexOf(e.keyCode) > -1) {
+            // Only prevent if a game screen is active (not the hub)
+            if(!document.getElementById('screen-hub').classList.contains('active')) {
+                e.preventDefault();
+            }
+        }
+    }, false);
+
     // --- MAIN SUITE CONTROLLER ---
     const Suite = {
         goHome: () => {
@@ -568,7 +593,7 @@
                 const nx=g.x+d.x; const ny=g.y+d.y;
                 return ny>=0&&ny<this.map.length&&nx>=0&&nx<this.map[0].length&&this.map[ny][nx]!==1;
             });
-            if(validMoves.length===0) validMoves=dirs.filter(d=>{const nx=g.x+d.x;const ny=g.y+d.y; return ny>=0&&ny<this.map.length&&nx>=0&&nx<this.map[0].length&&this.map[ny][nx]!==1;});
+            if(validMoves.length===0) validMoves=dirs.filter(d=>{const nx=g.x+d.x;const ny=g.y+d.y; return ny>=0&&ny<this.map[0].length&&this.map[ny][nx]!==1;});
             if(validMoves.length>0) {
                 validMoves.sort((a,b)=>{ const distA=Math.abs((g.x+a.x)-target.x)+Math.abs((g.y+a.y)-target.y); const distB=Math.abs((g.x+b.x)-target.x)+Math.abs((g.y+b.y)-target.y); return distA-distB; });
                 let selected=validMoves[0];
@@ -600,7 +625,7 @@
 
     // --- 5. TIC TAC TOE SUITE ---
     const TTT = {
-        mode: null, variant: null, peer: null, conn: null,
+        mode: null, variant: null, peer: null, conn: null, difficulty: 'medium',
         board: [], turn: 'X', myPlayer: 'X', active: false,
         ultMacro: [], activeSubGrid: -1, scores: {p1:0, p2:0, draw:0},
         animationsEnabled: true, nextStarter: 'X', currentStarter: 'X',
@@ -611,11 +636,27 @@
             document.getElementById('ttt-host-wait').style.display='none';
             document.getElementById('ttt-variant').style.display='none';
             document.getElementById('ttt-game').style.display='none';
+            document.getElementById('ttt-bot-diff').style.display='none';
         },
         setup: (mode) => {
             TTT.mode = mode;
-            if(mode === 'mp') document.getElementById('ttt-menu').style.display='none', document.getElementById('ttt-mp-setup').style.display='block';
-            else document.getElementById('ttt-menu').style.display='none', document.getElementById('ttt-variant').style.display='block';
+            if(mode === 'mp') {
+                document.getElementById('ttt-menu').style.display='none';
+                document.getElementById('ttt-mp-setup').style.display='block';
+            } else if (mode === 'bot-diff') {
+                document.getElementById('ttt-menu').style.display='none';
+                document.getElementById('ttt-bot-diff').style.display='block';
+            } else {
+                TTT.mode = 'local';
+                document.getElementById('ttt-menu').style.display='none';
+                document.getElementById('ttt-variant').style.display='block';
+            }
+        },
+        setDifficulty: (diff) => {
+            TTT.difficulty = diff;
+            TTT.mode = 'bot';
+            document.getElementById('ttt-bot-diff').style.display='none';
+            document.getElementById('ttt-variant').style.display='block';
         },
         startGame: (v) => {
             TTT.variant = v;
@@ -643,9 +684,11 @@
                 TTT.board = Array(27).fill(null);
                 const w = document.createElement('div'); w.id='board-3d';
                 for(let z=0;z<3;z++){
+                    const lb = document.createElement('div'); lb.className='level-container';
+                    const lbl = document.createElement('div'); lbl.className='layer-label'; lbl.innerText=`Level ${z+1}`; lb.appendChild(lbl);
                     const l = document.createElement('div'); l.className='layer-3d';
                     for(let i=0;i<9;i++) l.appendChild(TTT.cell(z*9+i));
-                    w.appendChild(l);
+                    lb.appendChild(l); w.appendChild(lb);
                 }
                 con.appendChild(w);
             }
@@ -747,9 +790,105 @@
             return null;
         },
         botMove: () => {
-            let moves=[]; TTT.board.forEach((c,i)=>{ if(!c) moves.push(i) });
-            if(TTT.variant==='ultimate') moves = moves.filter(i => { const s = Math.floor(i/9); return TTT.activeSubGrid===-1 || TTT.activeSubGrid===s; });
-            if(moves.length>0) TTT.move(moves[Math.floor(Math.random()*moves.length)], 'O');
+            let moves=[]; 
+            TTT.board.forEach((c,i)=>{ if(!c) moves.push(i) });
+            
+            // Ultimate restriction
+            if(TTT.variant==='ultimate') {
+                moves = moves.filter(i => { 
+                    const s = Math.floor(i/9); 
+                    return TTT.activeSubGrid===-1 || TTT.activeSubGrid===s; 
+                });
+            }
+
+            if (moves.length === 0) return;
+
+            let chosen = moves[0];
+
+            // --- DIFFICULTY LOGIC ---
+            if (TTT.difficulty === 'easy') {
+                // Completely Random
+                chosen = moves[Math.floor(Math.random() * moves.length)];
+            } 
+            else if (TTT.difficulty === 'medium') {
+                // 60% chance to be smart, 40% random
+                if (Math.random() > 0.4) {
+                    chosen = TTT.getBestMove(moves, 'medium');
+                } else {
+                    chosen = moves[Math.floor(Math.random() * moves.length)];
+                }
+            } 
+            else {
+                // Hard: 100% Minimax
+                chosen = TTT.getBestMove(moves, 'hard');
+            }
+
+            TTT.move(chosen, 'O');
+        },
+        getBestMove: (availableMoves, level) => {
+            // For Ultimate or 3D, full minimax is too slow without optimization.
+            // Fallback to simple lookahead for complex variants to prevent browser freeze.
+            if (TTT.variant !== 'normal') {
+                // Win if can, Block if must
+                for (let m of availableMoves) {
+                    let temp = [...TTT.board]; temp[m] = 'O';
+                    if (TTT.checkWinSim(temp, 'O')) return m;
+                }
+                for (let m of availableMoves) {
+                    let temp = [...TTT.board]; temp[m] = 'X';
+                    if (TTT.checkWinSim(temp, 'X')) return m;
+                }
+                return availableMoves[Math.floor(Math.random() * availableMoves.length)];
+            }
+
+            // Standard Minimax for 3x3
+            let bestScore = -Infinity;
+            let move = availableMoves[0];
+            
+            for (let i = 0; i < availableMoves.length; i++) {
+                let idx = availableMoves[i];
+                TTT.board[idx] = 'O';
+                let score = TTT.minimax(TTT.board, 0, false);
+                TTT.board[idx] = null;
+                if (score > bestScore) {
+                    bestScore = score;
+                    move = idx;
+                }
+            }
+            return move;
+        },
+        minimax: (board, depth, isMax) => {
+            let winLine = TTT.checkWin(board, isMax ? 'X' : 'O');
+            if (TTT.checkWin(board, 'O')) return 10 - depth;
+            if (TTT.checkWin(board, 'X')) return depth - 10;
+            if (board.every(c => c)) return 0;
+
+            if (isMax) {
+                let best = -Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (!board[i]) {
+                        board[i] = 'O';
+                        best = Math.max(best, TTT.minimax(board, depth + 1, false));
+                        board[i] = null;
+                    }
+                }
+                return best;
+            } else {
+                let best = Infinity;
+                for (let i = 0; i < 9; i++) {
+                    if (!board[i]) {
+                        board[i] = 'X';
+                        best = Math.min(best, TTT.minimax(board, depth + 1, true));
+                        board[i] = null;
+                    }
+                }
+                return best;
+            }
+        },
+        checkWinSim: (b, p) => {
+            if(TTT.variant==='normal') return TTT.checkWin(b,p);
+            if(TTT.variant==='3d') return TTT.checkWin3D(b,p);
+            return false; 
         },
         end: (res, winLine) => {
             TTT.active = false;
