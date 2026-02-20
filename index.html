@@ -105,6 +105,11 @@
         .tile-2048[data-val="32"] { background: #DD8566; color: white; } .tile-2048[data-val="64"] { background: #C06040; color: white; }
         .tile-2048[data-val="128"] { background: #A04020; color: white; font-size: 1.2rem; }
         
+        /* HANGMAN STYLES */
+        .hm-key { padding: 8px; font-family: 'Roboto Mono', monospace; font-size: 1.1rem; font-weight: bold; background: var(--surface); border: 2px solid var(--outline); border-radius: 8px; color: var(--text); cursor: pointer; transition: 0.1s; min-width: 36px; text-align:center; }
+        .hm-key:active { transform: scale(0.95); }
+        .hm-key:disabled { opacity: 0.4; cursor: not-allowed; border-color: transparent; }
+
         /* TIC TAC TOE */
         #game-wrapper { position: relative; margin-top: 10px; transition: transform 0.5s; width: 100%; display: flex; justify-content: center; }
         #win-line-svg { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 100; overflow: visible; filter: drop-shadow(0px 4px 6px rgba(0,0,0,0.3)); }
@@ -173,13 +178,34 @@
             <div class="hub-card" onclick="Suite.loadGame('breakout')"><div class="hub-icon">B</div><div class="hub-title">Breakout</div></div>
             <div class="hub-card" onclick="Suite.loadGame('2048')"><div class="hub-icon">2</div><div class="hub-title">2048</div></div>
             <div class="hub-card" onclick="Suite.loadGame('pong')"><div class="hub-icon">|</div><div class="hub-title">Pong</div></div>
+            <div class="hub-card" onclick="Suite.loadGame('hangman')"><div class="hub-icon">H</div><div class="hub-title">Hangman</div></div>
         </div>
+    </div>
+
+    <div id="screen-hangman" class="screen">
+        <h1>Hangman</h1>
+        
+        <div id="hm-setup" style="display:flex; flex-direction:column; align-items:center; width:100%;">
+            <p id="hm-status" style="color:var(--text); margin-bottom:15px; font-weight:bold; text-align:center;">Player 1: Enter a secret word</p>
+            <input type="password" id="hm-word-input" class="mp-input" placeholder="Secret Word" autocomplete="off">
+            <button class="btn-primary" onclick="HangmanGame.validateWord()" style="margin-top:20px;">Start Game</button>
+        </div>
+
+        <div id="hm-game" style="display:none; flex-direction:column; align-items:center; width:100%;">
+            <canvas id="hm-canvas" width="300" height="300"></canvas>
+            <div id="hm-word-display" style="font-size:2rem; letter-spacing:8px; font-family:'Roboto Mono', monospace; font-weight:bold; margin:20px 0; color:var(--text); text-align:center;"></div>
+            <div id="hm-wrong-display" style="color:#e74c3c; font-weight:bold; min-height:24px; margin-bottom:15px;"></div>
+            <div id="hm-keyboard" style="display:flex; flex-wrap:wrap; justify-content:center; gap:6px; max-width:350px;"></div>
+            <button class="btn-primary" onclick="HangmanGame.start()" style="margin-top:20px;">New Game</button>
+        </div>
+        
+        <button class="back-btn" onclick="Suite.goHome()">Exit to Hub</button>
     </div>
 
     <div id="screen-snake" class="screen">
         <h1>Snake</h1><div class="score-display" id="snake-score">0</div>
         <canvas id="snake-canvas" width="300" height="300"></canvas>
-        <div class="controls-row"><button class="btn-primary" onclick="SnakeGame.start()">Restart</button><button id="btn-ai-snake" class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
+        <div class="controls-row"><button class="btn-primary" onclick="SnakeGame.start()">Restart</button><button class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
         <button class="back-btn" onclick="Suite.goHome()">Exit to Hub</button>
     </div>
     
@@ -192,7 +218,7 @@
     <div id="screen-dino" class="screen">
         <h1>Dino Run</h1><div class="score-display" id="dino-score">0</div>
         <canvas id="dino-canvas" width="600" height="200"></canvas>
-        <div class="controls-row"><button id="dino-start-btn" class="btn-primary" onclick="DinoGame.start()">Start Run</button><button id="btn-ai-dino" class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
+        <div class="controls-row"><button id="dino-start-btn" class="btn-primary" onclick="DinoGame.start()">Start Run</button><button class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
         <button class="back-btn" onclick="Suite.goHome()">Exit to Hub</button>
     </div>
     
@@ -200,7 +226,7 @@
         <h1>Pac-Man Lite</h1><div class="score-display" id="pac-score">0</div>
         <div class="level-display" id="pac-level">Level 1</div>
         <canvas id="pac-canvas" width="300" height="300"></canvas>
-        <div class="controls-row"><button class="btn-primary" onclick="PacGame.start()">Restart</button><button id="btn-ai-pacman" class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
+        <div class="controls-row"><button class="btn-primary" onclick="PacGame.start()">Restart</button><button class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
         <button class="back-btn" onclick="Suite.goHome()">Exit to Hub</button>
     </div>
 
@@ -208,21 +234,21 @@
         <h1>Breakout</h1><div class="score-display" id="breakout-score">0</div>
         <div class="level-display" id="breakout-level">Level 1</div>
         <canvas id="breakout-canvas" width="300" height="400"></canvas>
-        <div class="controls-row"><button class="btn-primary" onclick="BreakoutGame.start()">Restart</button><button id="btn-ai-breakout" class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
+        <div class="controls-row"><button class="btn-primary" onclick="BreakoutGame.start()">Restart</button><button class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
         <button class="back-btn" onclick="Suite.goHome()">Exit to Hub</button>
     </div>
 
     <div id="screen-2048" class="screen">
         <h1>2048</h1><div class="score-display" id="2048-score">0</div>
         <div id="grid-2048"></div>
-        <div class="controls-row"><button class="btn-primary" onclick="Game2048.start()">Restart</button><button id="btn-ai-2048" class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
+        <div class="controls-row"><button class="btn-primary" onclick="Game2048.start()">Restart</button><button class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
         <button class="back-btn" onclick="Suite.goHome()">Exit to Hub</button>
     </div>
 
     <div id="screen-pong" class="screen">
         <h1>Pong</h1><div class="score-display" id="pong-score">0 - 0</div>
         <canvas id="pong-canvas" width="300" height="400"></canvas>
-        <div class="controls-row"><button class="btn-primary" onclick="PongGame.start()">Restart</button><button id="btn-ai-pong" class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
+        <div class="controls-row"><button class="btn-primary" onclick="PongGame.start()">Restart</button><button class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
         <button class="back-btn" onclick="Suite.goHome()">Exit to Hub</button>
     </div>
 
@@ -274,6 +300,7 @@
             if(id === 'breakout') { Suite.activeGame = BreakoutGame; BreakoutGame.start(); }
             if(id === '2048') { Suite.activeGame = Game2048; Game2048.start(); }
             if(id === 'pong') { Suite.activeGame = PongGame; PongGame.start(); }
+            if(id === 'hangman') { Suite.activeGame = HangmanGame; HangmanGame.start(); }
             if(id === 'ttt') { Suite.activeGame = TTT; TTT.showMenu(); }
             if(id === 'mines') { Suite.activeGame = null; MinesGame.init('easy'); }
         },
@@ -290,6 +317,92 @@
     });
 
     // --- GAME MODULES ---
+
+    // HANGMAN (PASS & PLAY + DICTIONARY API)
+    const HangmanGame = {
+        canvas: document.getElementById('hm-canvas'), ctx: null, word: "", guessed: [], mistakes: 0, maxMistakes: 6, running: false,
+        start: function() {
+            this.running = false;
+            document.getElementById('hm-setup').style.display = 'flex';
+            document.getElementById('hm-game').style.display = 'none';
+            document.getElementById('hm-word-input').value = '';
+            document.getElementById('hm-status').innerText = 'Player 1: Enter a secret word';
+            if(!this.ctx) this.ctx = this.canvas.getContext('2d');
+        },
+        stop: function() { this.running = false; },
+        validateWord: async function() {
+            let input = document.getElementById('hm-word-input').value.trim().toLowerCase();
+            if(!input || !/^[a-z]+$/.test(input)) {
+                Suite.showModal("Invalid", "Please enter a word with letters only."); return;
+            }
+            document.getElementById('hm-status').innerText = 'Checking dictionary...';
+            try {
+                let res = await fetch(`https://api.dictionaryapi.dev/api/v2/entries/en/${input}`);
+                if(res.ok) { this.startGame(input); } 
+                else { document.getElementById('hm-status').innerText = 'Word not found in dictionary!'; }
+            } catch(e) {
+                // Fallback if offline/API down
+                this.startGame(input);
+            }
+        },
+        startGame: function(w) {
+            this.word = w; this.guessed = []; this.mistakes = 0; this.running = true;
+            document.getElementById('hm-setup').style.display = 'none';
+            document.getElementById('hm-game').style.display = 'flex';
+            this.buildKeyboard();
+            this.updateUI();
+            this.draw();
+        },
+        buildKeyboard: function() {
+            const kb = document.getElementById('hm-keyboard'); kb.innerHTML = '';
+            "abcdefghijklmnopqrstuvwxyz".split('').forEach(l => {
+                let b = document.createElement('button');
+                b.className = 'hm-key'; b.innerText = l.toUpperCase();
+                b.onclick = () => this.guess(l);
+                kb.appendChild(b);
+            });
+        },
+        guess: function(l) {
+            if(!this.running || this.guessed.includes(l)) return;
+            this.guessed.push(l);
+            let btns = document.querySelectorAll('.hm-key');
+            for(let b of btns) { if(b.innerText === l.toUpperCase()) { b.disabled = true; break; } }
+
+            if(!this.word.includes(l)) this.mistakes++;
+            this.updateUI(); this.draw();
+            this.checkWin();
+        },
+        handleInput: function(e) {
+            if(!this.running) return;
+            if(/^[a-zA-Z]$/.test(e.key)) { this.guess(e.key.toLowerCase()); }
+        },
+        updateUI: function() {
+            let display = this.word.split('').map(l => this.guessed.includes(l) ? l.toUpperCase() : '_').join(' ');
+            document.getElementById('hm-word-display').innerText = display;
+            
+            let wrong = this.guessed.filter(l => !this.word.includes(l)).map(l => l.toUpperCase()).join(', ');
+            document.getElementById('hm-wrong-display').innerText = wrong ? "Incorrect: " + wrong : "";
+        },
+        draw: function() {
+            let ctx = this.ctx; ctx.clearRect(0,0,300,300);
+            ctx.strokeStyle = '#474D4D'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+            // Scaffold
+            ctx.beginPath(); ctx.moveTo(50, 280); ctx.lineTo(250, 280); ctx.moveTo(100, 280); ctx.lineTo(100, 20); ctx.lineTo(200, 20); ctx.lineTo(200, 50); ctx.stroke();
+
+            // Custom Order: Legs(1), Arms(2), Body(3), Head(4), Eyes(5), Hair(6)
+            if(this.mistakes >= 1) { ctx.beginPath(); ctx.moveTo(200, 180); ctx.lineTo(170, 230); ctx.moveTo(200, 180); ctx.lineTo(230, 230); ctx.stroke(); } // Legs
+            if(this.mistakes >= 2) { ctx.beginPath(); ctx.moveTo(200, 120); ctx.lineTo(170, 160); ctx.moveTo(200, 120); ctx.lineTo(230, 160); ctx.stroke(); } // Arms
+            if(this.mistakes >= 3) { ctx.beginPath(); ctx.moveTo(200, 100); ctx.lineTo(200, 180); ctx.stroke(); } // Body
+            if(this.mistakes >= 4) { ctx.beginPath(); ctx.arc(200, 75, 25, 0, Math.PI*2); ctx.stroke(); } // Head
+            if(this.mistakes >= 5) { ctx.beginPath(); ctx.arc(190, 70, 2, 0, Math.PI*2); ctx.arc(210, 70, 2, 0, Math.PI*2); ctx.fillStyle='#474D4D'; ctx.fill(); } // Eyes
+            if(this.mistakes >= 6) { ctx.beginPath(); ctx.moveTo(185, 50); ctx.lineTo(180, 40); ctx.moveTo(200, 50); ctx.lineTo(200, 35); ctx.moveTo(215, 50); ctx.lineTo(220, 40); ctx.stroke(); } // Hair
+        },
+        checkWin: function() {
+            let won = this.word.split('').every(l => this.guessed.includes(l));
+            if(won) { this.running = false; setTimeout(() => Suite.showModal("You Won!", `The word was ${this.word.toUpperCase()}`), 300); }
+            else if(this.mistakes >= this.maxMistakes) { this.running = false; setTimeout(() => Suite.showModal("Game Over", `The word was ${this.word.toUpperCase()}`), 300); }
+        }
+    };
     
     // SNAKE (EXPERT BFS + FLOOD FILL AREA SURVIVAL)
     const SnakeGame = {
@@ -395,7 +508,7 @@
         setupTouch: function(){let tx=0,ty=0; this.canvas.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY}; this.canvas.ontouchmove=e=>{e.preventDefault();}; this.canvas.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty; if(Math.abs(dx)>Math.abs(dy)){if(dx>0&&this.snake.dx===0){this.snake.dx=15;this.snake.dy=0;}else if(this.snake.dx===0){this.snake.dx=-15;this.snake.dy=0;}}else{if(dy>0&&this.snake.dy===0){this.snake.dy=15;this.snake.dx=0;}else if(this.snake.dy===0){this.snake.dy=-15;this.snake.dx=0;}}};}
     };
 
-    // DINO (SCALING SPEED FIX)
+    // DINO
     const DinoGame = {
         canvas: document.getElementById('dino-canvas'), ctx: document.getElementById('dino-canvas').getContext('2d'), running: false, dino: {x:50,y:150,w:30,h:30,dy:0,grounded:true}, obstacles: [], frame: 0, score: 0, baseSpeed: 20, gameSpeed: 6,
         start: function() { this.running=true; this.score=0; this.frame=0; this.gameSpeed=6; this.obstacles=[]; this.dino.y=150; this.dino.dy=0; document.getElementById('dino-start-btn').style.display='none'; this.restartTimer(); this.canvas.ontouchstart=(e)=>{e.preventDefault();this.jump()}; },
@@ -486,7 +599,7 @@
         setupTouch: function(){let tx=0,ty=0; this.canvas.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY}; this.canvas.ontouchmove=e=>{e.preventDefault();}; this.canvas.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty; if(Math.abs(dx)>Math.abs(dy))this.nextDir=dx>0?{x:1,y:0}:{x:-1,y:0}; else this.nextDir=dy>0?{x:0,y:1}:{x:0,y:-1};};}
     };
 
-    // BREAKOUT (SMART PREDICTION WITH DEADZONE)
+    // BREAKOUT
     const BreakoutGame = {
         c: document.getElementById('breakout-canvas'), ctx: document.getElementById('breakout-canvas').getContext('2d'), ball: {}, paddle: {}, bricks: [], running:false, score:0, interval:null, baseSpeed: 16, level: 1,
         start: function() {
@@ -513,7 +626,7 @@
                 let impactX = this.ball.x + (this.ball.dx / this.ball.dy) * (380 - this.ball.y);
                 if(impactX < 0) impactX = -impactX; if(impactX > 300) impactX = 600 - impactX;
                 let target = impactX - this.paddle.w/2;
-                if(Math.abs(this.paddle.x - target) > 6) { // Deadzone to prevent jitter
+                if(Math.abs(this.paddle.x - target) > 6) { 
                     if(this.paddle.x < target) this.paddle.x += 6; else if(this.paddle.x > target) this.paddle.x -= 6;
                 }
             }
@@ -533,7 +646,7 @@
         }
     };
 
-    // 2048 (CORNER STRATEGY AI)
+    // 2048 
     const Game2048 = {
         grid: [], score: 0,
         start: function() { this.grid = Array(16).fill(0); this.score=0; this.addNew(); this.addNew(); this.draw(); 
@@ -589,7 +702,7 @@
         }
     };
 
-    // PONG (SPEED CLAMPS & JITTER FIX)
+    // PONG
     const PongGame = {
         c: document.getElementById('pong-canvas'), ctx: document.getElementById('pong-canvas').getContext('2d'), ball: {}, p1: {}, p2: {}, score: [0,0], running: false, interval: null, baseSpeed: 16,
         start: function() {
@@ -622,7 +735,6 @@
             this.ball.x+=this.ball.dx; this.ball.y+=this.ball.dy;
             if(this.ball.x<0 || this.ball.x>300) this.ball.dx=-this.ball.dx;
             
-            // Collisions with Speed Clamps
             if(this.ball.y>370 && this.ball.x>this.p1.x && this.ball.x<this.p1.x+40) { 
                 this.ball.dy = -Math.abs(this.ball.dy); 
                 this.ball.dx = Math.sign(this.ball.dx) * Math.min(Math.abs(this.ball.dx) * 1.05, 10); 
@@ -643,7 +755,7 @@
         }
     };
 
-    // MINESWEEPER (FIRST CLICK SAFETY)
+    // MINESWEEPER
     const MinesGame = {
         grid: [], rows: 10, cols: 10, mines: 15, gameOver: false, firstClick: true,
         init: function(diff) {
@@ -666,7 +778,6 @@
             let minesPlaced = 0;
             while(minesPlaced < this.mines) { 
                 let r = Math.floor(Math.random()*this.rows); let c = Math.floor(Math.random()*this.cols); 
-                // Don't place on first click OR its immediate neighbors
                 if(!this.grid[r][c].mine && (Math.abs(r-firstR) > 1 || Math.abs(c-firstC) > 1)) { 
                     this.grid[r][c].mine = true; minesPlaced++; 
                 } 
@@ -692,7 +803,7 @@
         flag: function(r,c) { if(this.gameOver || this.grid[r][c].revealed) return; const cell = this.grid[r][c]; cell.flagged = !cell.flagged; cell.el.innerText = cell.flagged ? '🚩' : ''; cell.el.classList.toggle('flag'); }
     };
 
-    // TIC TAC TOE (HEURISTIC ENGINE + ULTIMATE FIXES)
+    // TIC TAC TOE
     const TTT = {
         mode: null, variant: null, peer: null, conn: null, difficulty: 'medium',
         board: [], turn: 'X', myPlayer: 'X', active: false, ultMacro: [], activeSubGrid: -1, scores: {p1:0, p2:0, draw:0}, animationsEnabled: true, nextStarter: 'X', currentStarter: 'X', aiTimer: null,
@@ -735,8 +846,6 @@
         checkWin3D: (b, p) => { for(let line of TTT.winLines3D) if(b[line[0]]===p && b[line[1]]===p && b[line[2]]===p) return line; return null; },
         handleUlt: (idx, p) => { const s = Math.floor(idx/9); const sub = TTT.board.slice(s*9, s*9+9); if(TTT.checkWin(sub, p) && !TTT.ultMacro[s]) { TTT.ultMacro[s] = p; document.getElementById(`sub-${s}`).classList.add(p==='X'?'won-x':'won-o'); } const next = idx % 9; TTT.activeSubGrid = (TTT.ultMacro[next] || TTT.board.slice(next*9, next*9+9).every(c=>c)) ? -1 : next; return TTT.checkWin(TTT.ultMacro, p); },
         highlightUlt: () => { for(let i=0;i<9;i++){ const el = document.getElementById(`sub-${i}`); el.classList.remove('active-zone'); if(!TTT.ultMacro[i] && (TTT.activeSubGrid===-1 || TTT.activeSubGrid===i)) el.classList.add('active-zone'); } },
-        
-        // --- AI LOGIC ENGINE ---
         botMove: () => {
             if(!TTT.active) return;
             let moves=[]; TTT.board.forEach((c,i)=>{ if(!c) moves.push(i) });
@@ -764,46 +873,36 @@
         },
         getBestMove: (available, p) => {
             let opp = p === 'X' ? 'O' : 'X';
-            
-            // NORMAL TTT: Unbeatable Minimax
             if (TTT.variant === 'normal') {
                 let bestScore = -Infinity; let move = available[0];
                 for(let m of available) { TTT.board[m] = p; let score = TTT.minimax(TTT.board, 0, false, p, opp); TTT.board[m] = null; if(score > bestScore) { bestScore = score; move = m; } }
                 return move;
             }
-            
-            // ULTIMATE TTT: Macro Heuristic Engine
             if (TTT.variant === 'ultimate') {
                 for (let m of available) { let temp = [...TTT.ultMacro]; let sub = TTT.board.slice(Math.floor(m/9)*9, Math.floor(m/9)*9+9); sub[m%9]=p; if(TTT.checkWin(sub, p)) { temp[Math.floor(m/9)]=p; if(TTT.checkWin(temp, p)) return m; } }
                 for (let m of available) { let temp = [...TTT.ultMacro]; let sub = TTT.board.slice(Math.floor(m/9)*9, Math.floor(m/9)*9+9); sub[m%9]=opp; if(TTT.checkWin(sub, opp)) { temp[Math.floor(m/9)]=opp; if(TTT.checkWin(temp, opp)) return m; } }
                 for (let m of available) { let sub = TTT.board.slice(Math.floor(m/9)*9, Math.floor(m/9)*9+9); sub[m%9] = p; if(TTT.checkWin(sub, p)) return m; }
                 for (let m of available) { let sub = TTT.board.slice(Math.floor(m/9)*9, Math.floor(m/9)*9+9); sub[m%9] = opp; if(TTT.checkWin(sub, opp)) return m; }
-                
                 let bestScore = -Infinity; let bestMoves = [];
                 for (let m of available) {
                     let score = 0; let localIdx = m % 9;
-                    if (localIdx === 4) score += 5; // Local center bonus
+                    if (localIdx === 4) score += 5; 
                     let nextGrid = localIdx;
-                    // Penalty for sending opponent to an open grid or already won grid
                     if (TTT.ultMacro[nextGrid] || TTT.board.slice(nextGrid*9, nextGrid*9+9).every(c=>c)) score -= 50; 
                     if (score > bestScore) { bestScore = score; bestMoves = [m]; } else if (score === bestScore) { bestMoves.push(m); }
                 }
                 return bestMoves[Math.floor(Math.random() * bestMoves.length)];
             }
-            
-            // 3D TTT: Heuristic Engine
             for (let m of available) { let temp = [...TTT.board]; temp[m] = p; if (TTT.checkWin3D(temp,p)) return m; }
             for (let m of available) { let temp = [...TTT.board]; temp[m] = opp; if (TTT.checkWin3D(temp,opp)) return m; }
-            
             let bestScore = -Infinity; let bestMoves = [];
             for (let m of available) {
-                let score = 0;
-                if (m === 13) score += 20; // 3D Center
+                let score = 0; if (m === 13) score += 20;
                 for (let line of TTT.winLines3D) {
                     if (line.includes(m)) {
                         let pCount = 0, oppCount = 0;
                         for (let idx of line) { if (TTT.board[idx] === p) pCount++; else if (TTT.board[idx] === opp) oppCount++; }
-                        if (pCount > 0 && oppCount === 0) score += Math.pow(10, pCount); // Prioritize forks
+                        if (pCount > 0 && oppCount === 0) score += Math.pow(10, pCount); 
                     }
                 }
                 if (score > bestScore) { bestScore = score; bestMoves = [m]; } else if (score === bestScore) { bestMoves.push(m); }
@@ -815,7 +914,6 @@
             if(res==='draw') { TTT.scores.draw++; TTT.nextStarter = TTT.currentStarter === 'X' ? 'O' : 'X'; } else { if(res==='X') TTT.scores.p1++; else TTT.scores.p2++; TTT.nextStarter = res==='X'?'O':'X'; }
             document.getElementById('p1-score').innerText = `P1: ${TTT.scores.p1}`; document.getElementById('p2-score').innerText = `P2: ${TTT.scores.p2}`;
             if(res !== 'draw' && winLine) { if(TTT.animationsEnabled && TTT.variant==='3d') { document.getElementById('board-3d').classList.add('stacked'); setTimeout(() => { TTT.drawWinLine(winLine); }, 1200); } else if(TTT.animationsEnabled) { TTT.drawWinLine(winLine); } }
-            
             if (TTT.mode === 'ai-vs-ai') { TTT.aiTimer = setTimeout(() => { if (Suite.activeGame === TTT) TTT.restart(); }, 2000 / Suite.speedMult); } 
             else { setTimeout(() => document.getElementById('ttt-restart').style.display='block', 800); }
         },
