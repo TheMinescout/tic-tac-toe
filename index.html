@@ -314,48 +314,106 @@
             }
         },
         handleInput: function(e){ if(e.which===37&&this.snake.dx===0){this.snake.dx=-15;this.snake.dy=0;} else if(e.which===38&&this.snake.dy===0){this.snake.dy=-15;this.snake.dx=0;} else if(e.which===39&&this.snake.dx===0){this.snake.dx=15;this.snake.dy=0;} else if(e.which===40&&this.snake.dy===0){this.snake.dy=15;this.snake.dx=0;} },
+        
+        // --- EXPERT AREA-BASED AI ---
         aiMove: function() {
-            const width = 20, height = 20; const toGrid = val => Math.floor(val / 15);
+            const width = 20, height = 20;
+            const toGrid = val => Math.floor(val / 15);
             let hx = toGrid(this.snake.cells[0].x), hy = toGrid(this.snake.cells[0].y);
             let ax = toGrid(this.apple.x), ay = toGrid(this.apple.y);
+            
+            // Walls = body excluding the tail (since it moves out of the way)
             let currentWalls = this.snake.cells.slice(0, -1).map(c => ({x: toGrid(c.x), y: toGrid(c.y)}));
-            const isSafe = (x, y, walls) => { if(x<0 || x>=width || y<0 || y>=height) return false; for(let w of walls) if(w.x===x && w.y===y) return false; return true; };
+            
+            const isSafe = (x, y, walls) => {
+                if(x<0 || x>=width || y<0 || y>=height) return false;
+                for(let w of walls) if(w.x===x && w.y===y) return false;
+                return true;
+            };
+
+            // Flood Fill to find maximum reachable free space
             const getArea = (startX, startY, walls) => {
                 if(!isSafe(startX, startY, walls)) return 0;
-                let q = [{x: startX, y: startY}]; let visited = new Set(); visited.add(startX+","+startY); let area = 0;
+                let q = [{x: startX, y: startY}];
+                let visited = new Set();
+                visited.add(startX+","+startY);
+                let area = 0;
                 while(q.length > 0) {
-                    let curr = q.shift(); area++;
+                    let curr = q.shift();
+                    area++;
                     let dirs = [{x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0}];
-                    for(let d of dirs) { let nx = curr.x + d.x, ny = curr.y + d.y; if(isSafe(nx, ny, walls) && !visited.has(nx+","+ny)) { visited.add(nx+","+ny); q.push({x: nx, y: ny}); } }
-                } return area;
+                    for(let d of dirs) {
+                        let nx = curr.x + d.x, ny = curr.y + d.y;
+                        if(isSafe(nx, ny, walls) && !visited.has(nx+","+ny)) {
+                            visited.add(nx+","+ny);
+                            q.push({x: nx, y: ny});
+                        }
+                    }
+                }
+                return area;
             };
+
             const bfs = (startX, startY, targetX, targetY, walls) => {
-                let q = [{x: startX, y: startY, path: []}]; let visited = new Set(); visited.add(startX+","+startY);
+                let q = [{x: startX, y: startY, path: []}];
+                let visited = new Set(); visited.add(startX+","+startY);
                 let dirs = [{x:0, y:-1, d:{dx:0, dy:-15}}, {x:0, y:1, d:{dx:0, dy:15}}, {x:-1, y:0, d:{dx:-15, dy:0}}, {x:1, y:0, d:{dx:15, dy:0}}];
                 while(q.length > 0) {
-                    let curr = q.shift(); if(curr.x === targetX && curr.y === targetY) return curr.path;
-                    for(let dir of dirs) { let nx = curr.x + dir.x, ny = curr.y + dir.y; if(isSafe(nx, ny, walls) && !visited.has(nx+","+ny)) { visited.add(nx+","+ny); q.push({x: nx, y: ny, path: [...curr.path, dir.d]}); } }
-                } return null;
+                    let curr = q.shift();
+                    if(curr.x === targetX && curr.y === targetY) return curr.path;
+                    for(let dir of dirs) {
+                        let nx = curr.x + dir.x, ny = curr.y + dir.y;
+                        if(isSafe(nx, ny, walls) && !visited.has(nx+","+ny)) {
+                            visited.add(nx+","+ny); q.push({x: nx, y: ny, path: [...curr.path, dir.d]});
+                        }
+                    }
+                }
+                return null;
             };
 
             let dirs = [{x:0, y:-1, d:{dx:0, dy:-15}}, {x:0, y:1, d:{dx:0, dy:15}}, {x:-1, y:0, d:{dx:-15, dy:0}}, {x:1, y:0, d:{dx:15, dy:0}}];
-            let maxArea = -1; let bestSurvivalMove = null; let moveAreas = {};
+            let maxArea = -1;
+            let bestSurvivalMove = null;
+            let moveAreas = {};
+
+            // 1. Evaluate safety of all adjacent moves
             for(let dir of dirs) {
                 let nx = hx + dir.x, ny = hy + dir.y;
                 if (isSafe(nx, ny, currentWalls)) {
+                    // Imagine making this move. The old head becomes a wall, the tail disappears.
                     let nextWalls = [{x:hx, y:hy}, ...currentWalls.slice(0, -1)];
-                    let area = getArea(nx, ny, nextWalls); moveAreas[dir.d.dx+","+dir.d.dy] = area;
-                    if (area > maxArea) { maxArea = area; bestSurvivalMove = dir.d; }
+                    let area = getArea(nx, ny, nextWalls);
+                    moveAreas[dir.d.dx+","+dir.d.dy] = area;
+                    if (area > maxArea) {
+                        maxArea = area;
+                        bestSurvivalMove = dir.d;
+                    }
                 }
             }
 
-            let safeMove = null; let pathToApple = bfs(hx, hy, ax, ay, currentWalls);
+            let safeMove = null;
+            let pathToApple = bfs(hx, hy, ax, ay, currentWalls);
+
+            // 2. Check if taking the path to the apple traps us
             if (pathToApple && pathToApple.length > 0) {
-                let nextMove = pathToApple[0]; let areaOfNextMove = moveAreas[nextMove.dx+","+nextMove.dy] || 0;
-                if (areaOfNextMove === maxArea || areaOfNextMove > this.snake.cells.length) safeMove = nextMove;
+                let nextMove = pathToApple[0];
+                let areaOfNextMove = moveAreas[nextMove.dx+","+nextMove.dy] || 0;
+                
+                // If taking the shortest path leaves us with the max possible area, 
+                // OR it leaves us with more room than our body size, it is safe.
+                if (areaOfNextMove === maxArea || areaOfNextMove > this.snake.cells.length) {
+                    safeMove = nextMove;
+                }
             }
-            if (!safeMove) safeMove = bestSurvivalMove;
-            if (safeMove) { this.snake.dx = safeMove.dx; this.snake.dy = safeMove.dy; }
+
+            // 3. Survival Mode: If the path to the apple is a trap, stall by taking the move with the most open space
+            if (!safeMove) {
+                safeMove = bestSurvivalMove;
+            }
+
+            if (safeMove) { 
+                this.snake.dx = safeMove.dx; 
+                this.snake.dy = safeMove.dy; 
+            }
         },
         setupTouch: function(){let tx=0,ty=0; this.canvas.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY}; this.canvas.ontouchmove=e=>{e.preventDefault();}; this.canvas.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty; if(Math.abs(dx)>Math.abs(dy)){if(dx>0&&this.snake.dx===0){this.snake.dx=15;this.snake.dy=0;}else if(this.snake.dx===0){this.snake.dx=-15;this.snake.dy=0;}}else{if(dy>0&&this.snake.dy===0){this.snake.dy=15;this.snake.dx=0;}else if(this.snake.dy===0){this.snake.dy=-15;this.snake.dx=0;}}};}
     };
@@ -630,7 +688,7 @@
         flag: function(r,c) { if(this.gameOver || this.grid[r][c].revealed) return; const cell = this.grid[r][c]; cell.flagged = !cell.flagged; cell.el.innerText = cell.flagged ? '🚩' : ''; cell.el.classList.toggle('flag'); }
     };
 
-    // TIC TAC TOE (AI VS AI MODE INCLUDED)
+    // TIC TAC TOE (Fixed Filter)
     const TTT = {
         mode: null, variant: null, peer: null, conn: null, difficulty: 'medium',
         board: [], turn: 'X', myPlayer: 'X', active: false, ultMacro: [], activeSubGrid: -1, scores: {p1:0, p2:0, draw:0}, animationsEnabled: true, nextStarter: 'X', currentStarter: 'X', aiTimer: null,
@@ -676,7 +734,13 @@
         botMove: () => {
             if(!TTT.active) return;
             let moves=[]; TTT.board.forEach((c,i)=>{ if(!c) moves.push(i) });
-            if(TTT.variant==='ultimate') moves=moves.filter(i=>{const s=Math.floor(i/9); return TTT.activeSubGrid===-1||TTT.activeSubGrid===s;});
+            // THE FIX: Check if the sub-grid is already won
+            if(TTT.variant==='ultimate') {
+                moves = moves.filter(i => {
+                    const s = Math.floor(i/9); 
+                    return (TTT.activeSubGrid === -1 || TTT.activeSubGrid === s) && !TTT.ultMacro[s];
+                });
+            }
             if(moves.length===0) return;
             let chosen = moves[0];
             if (TTT.difficulty === 'easy') chosen = moves[Math.floor(Math.random() * moves.length)];
@@ -686,6 +750,11 @@
         },
         getBestMove: (available, p) => {
             let opp = p === 'X' ? 'O' : 'X';
+            if (TTT.variant === 'ultimate') {
+                for (let m of available) { let sub = TTT.board.slice(Math.floor(m/9)*9, Math.floor(m/9)*9+9); sub[m%9] = p; if(TTT.checkWin(sub, p)) return m; }
+                for (let m of available) { let sub = TTT.board.slice(Math.floor(m/9)*9, Math.floor(m/9)*9+9); sub[m%9] = opp; if(TTT.checkWin(sub, opp)) return m; }
+                return available[Math.floor(Math.random() * available.length)];
+            }
             for (let m of available) { let temp = [...TTT.board]; temp[m] = p; if ((TTT.variant==='3d'?TTT.checkWin3D(temp,p):TTT.checkWin(temp,p))) return m; }
             for (let m of available) { let temp = [...TTT.board]; temp[m] = opp; if ((TTT.variant==='3d'?TTT.checkWin3D(temp,opp):TTT.checkWin(temp,opp))) return m; }
             return available[Math.floor(Math.random() * available.length)];
