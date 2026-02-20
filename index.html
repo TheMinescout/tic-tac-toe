@@ -280,7 +280,7 @@
 
     // --- GAME MODULES ---
     
-    // SNAKE (PERFECT BFS + SURVIVAL AI)
+    // SNAKE (EXPERT BFS + AREA MAXIMIZATION AI)
     const SnakeGame = {
         canvas: document.getElementById('snake-canvas'), ctx: document.getElementById('snake-canvas').getContext('2d'), grid: 15, snake: {}, apple: {}, score: 0, running: false, interval: null, baseSpeed: 100, currentSpeed: 100,
         start: function() { this.snake={x:150,y:150,dx:15,dy:0,cells:[],maxCells:4}; this.apple={x:60,y:60}; this.score=0; this.running=true; this.currentSpeed=100; document.getElementById('snake-score').innerText=0; this.restartTimer(); this.setupTouch(); },
@@ -306,87 +306,105 @@
         },
         handleInput: function(e){ if(e.which===37&&this.snake.dx===0){this.snake.dx=-15;this.snake.dy=0;} else if(e.which===38&&this.snake.dy===0){this.snake.dy=-15;this.snake.dx=0;} else if(e.which===39&&this.snake.dx===0){this.snake.dx=15;this.snake.dy=0;} else if(e.which===40&&this.snake.dy===0){this.snake.dy=15;this.snake.dx=0;} },
         
-        // --- THE "PERFECT" BFS + TAIL SURVIVAL AI ---
+        // --- EXPERT AREA-BASED AI ---
         aiMove: function() {
             const width = 20, height = 20;
             const toGrid = val => Math.floor(val / 15);
             let hx = toGrid(this.snake.cells[0].x), hy = toGrid(this.snake.cells[0].y);
             let ax = toGrid(this.apple.x), ay = toGrid(this.apple.y);
-            let body = this.snake.cells.map(c => ({x: toGrid(c.x), y: toGrid(c.y)}));
             
-            const isSafe = (x, y, sb) => {
+            // Walls = body excluding the tail (since it moves out of the way)
+            let currentWalls = this.snake.cells.slice(0, -1).map(c => ({x: toGrid(c.x), y: toGrid(c.y)}));
+            
+            const isSafe = (x, y, walls) => {
                 if(x<0 || x>=width || y<0 || y>=height) return false;
-                for(let i=0; i<sb.length-1; i++) if(sb[i].x===x && sb[i].y===y) return false;
+                for(let w of walls) if(w.x===x && w.y===y) return false;
                 return true;
             };
 
-            const bfs = (startX, startY, targetX, targetY, sb) => {
+            // Flood Fill to find maximum reachable free space
+            const getArea = (startX, startY, walls) => {
+                if(!isSafe(startX, startY, walls)) return 0;
+                let q = [{x: startX, y: startY}];
+                let visited = new Set();
+                visited.add(startX+","+startY);
+                let area = 0;
+                while(q.length > 0) {
+                    let curr = q.shift();
+                    area++;
+                    let dirs = [{x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0}];
+                    for(let d of dirs) {
+                        let nx = curr.x + d.x, ny = curr.y + d.y;
+                        if(isSafe(nx, ny, walls) && !visited.has(nx+","+ny)) {
+                            visited.add(nx+","+ny);
+                            q.push({x: nx, y: ny});
+                        }
+                    }
+                }
+                return area;
+            };
+
+            const bfs = (startX, startY, targetX, targetY, walls) => {
                 let q = [{x: startX, y: startY, path: []}];
-                let visited = Array.from({length: height}, () => Array(width).fill(false));
-                for(let i=0; i<sb.length-1; i++) visited[sb[i].y][sb[i].x] = true;
-                visited[startY][startX] = true;
+                let visited = new Set(); visited.add(startX+","+startY);
                 let dirs = [{x:0, y:-1, d:{dx:0, dy:-15}}, {x:0, y:1, d:{dx:0, dy:15}}, {x:-1, y:0, d:{dx:-15, dy:0}}, {x:1, y:0, d:{dx:15, dy:0}}];
-                
-                let steps = 0;
-                while(q.length > 0 && steps < 1000) {
-                    let curr = q.shift(); steps++;
+                while(q.length > 0) {
+                    let curr = q.shift();
                     if(curr.x === targetX && curr.y === targetY) return curr.path;
                     for(let dir of dirs) {
                         let nx = curr.x + dir.x, ny = curr.y + dir.y;
-                        if(nx>=0 && nx<width && ny>=0 && ny<height && !visited[ny][nx]) {
-                            visited[ny][nx] = true;
-                            q.push({x: nx, y: ny, path: [...curr.path, dir.d]});
+                        if(isSafe(nx, ny, walls) && !visited.has(nx+","+ny)) {
+                            visited.add(nx+","+ny); q.push({x: nx, y: ny, path: [...curr.path, dir.d]});
                         }
                     }
                 }
                 return null;
             };
 
-            let safeMove = null;
-            
-            // 1. Path to Apple
-            let pathToApple = bfs(hx, hy, ax, ay, body);
+            let dirs = [{x:0, y:-1, d:{dx:0, dy:-15}}, {x:0, y:1, d:{dx:0, dy:15}}, {x:-1, y:0, d:{dx:-15, dy:0}}, {x:1, y:0, d:{dx:15, dy:0}}];
+            let maxArea = -1;
+            let bestSurvivalMove = null;
+            let moveAreas = {};
 
-            // 2. Check if eating the apple is safe (Can we reach our tail after?)
-            if (pathToApple && pathToApple.length > 0) {
-                let vBody = [...body];
-                for(let i=0; i<pathToApple.length; i++) {
-                    vBody.unshift({x: vBody[0].x + Math.sign(pathToApple[i].dx), y: vBody[0].y + Math.sign(pathToApple[i].dy)});
-                    if(i !== pathToApple.length - 1) vBody.pop();
-                }
-                let vTail = vBody[vBody.length-1];
-                if (vBody.length < 5 || bfs(vBody[0].x, vBody[0].y, vTail.x, vTail.y, vBody)) {
-                    safeMove = pathToApple[0];
-                }
-            }
-
-            // 3. Stalling Tactics (Follow Tail)
-            if (!safeMove) {
-                let dirs = [{x:0, y:-1, d:{dx:0, dy:-15}}, {x:0, y:1, d:{dx:0, dy:15}}, {x:-1, y:0, d:{dx:-15, dy:0}}, {x:1, y:0, d:{dx:15, dy:0}}];
-                let bestDist = -1;
-                for(let dir of dirs) {
-                    let nx = hx + dir.x, ny = hy + dir.y;
-                    if (isSafe(nx, ny, body)) {
-                        let vBody = [{x:nx, y:ny}, ...body.slice(0, body.length - 1)];
-                        let vTail = vBody[vBody.length-1];
-                        if (bfs(nx, ny, vTail.x, vTail.y, vBody)) {
-                            let distToApple = Math.abs(nx - ax) + Math.abs(ny - ay);
-                            if (distToApple > bestDist) { bestDist = distToApple; safeMove = dir.d; }
-                        }
+            // 1. Evaluate safety of all adjacent moves
+            for(let dir of dirs) {
+                let nx = hx + dir.x, ny = hy + dir.y;
+                if (isSafe(nx, ny, currentWalls)) {
+                    // Imagine making this move. The old head becomes a wall, the tail disappears.
+                    let nextWalls = [{x:hx, y:hy}, ...currentWalls.slice(0, -1)];
+                    let area = getArea(nx, ny, nextWalls);
+                    moveAreas[dir.d.dx+","+dir.d.dy] = area;
+                    if (area > maxArea) {
+                        maxArea = area;
+                        bestSurvivalMove = dir.d;
                     }
                 }
             }
 
-            // 4. Panic Mode (Any safe square)
-            if (!safeMove) {
-                let dirs = [{x:0, y:-1, d:{dx:0, dy:-15}}, {x:0, y:1, d:{dx:0, dy:15}}, {x:-1, y:0, d:{dx:-15, dy:0}}, {x:1, y:0, d:{dx:15, dy:0}}];
-                for(let dir of dirs) {
-                    let nx = hx + dir.x, ny = hy + dir.y;
-                    if (isSafe(nx, ny, body)) { safeMove = dir.d; break; }
+            let safeMove = null;
+            let pathToApple = bfs(hx, hy, ax, ay, currentWalls);
+
+            // 2. Check if taking the path to the apple traps us
+            if (pathToApple && pathToApple.length > 0) {
+                let nextMove = pathToApple[0];
+                let areaOfNextMove = moveAreas[nextMove.dx+","+nextMove.dy] || 0;
+                
+                // If taking the shortest path leaves us with the max possible area, 
+                // OR it leaves us with more room than our body size, it is safe.
+                if (areaOfNextMove === maxArea || areaOfNextMove > this.snake.cells.length) {
+                    safeMove = nextMove;
                 }
             }
 
-            if (safeMove) { this.snake.dx = safeMove.dx; this.snake.dy = safeMove.dy; }
+            // 3. Survival Mode: If the path to the apple is a trap, stall by taking the move with the most open space
+            if (!safeMove) {
+                safeMove = bestSurvivalMove;
+            }
+
+            if (safeMove) { 
+                this.snake.dx = safeMove.dx; 
+                this.snake.dy = safeMove.dy; 
+            }
         },
         setupTouch: function(){let tx=0,ty=0; this.canvas.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY}; this.canvas.ontouchmove=e=>{e.preventDefault();}; this.canvas.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty; if(Math.abs(dx)>Math.abs(dy)){if(dx>0&&this.snake.dx===0){this.snake.dx=15;this.snake.dy=0;}else if(this.snake.dx===0){this.snake.dx=-15;this.snake.dy=0;}}else{if(dy>0&&this.snake.dy===0){this.snake.dy=15;this.snake.dx=0;}else if(this.snake.dy===0){this.snake.dy=-15;this.snake.dx=0;}}};}
     };
@@ -413,7 +431,7 @@
         draw: function() { this.ctx.clearRect(0,0,600,200); this.ctx.fillStyle='#DD8566'; this.ctx.fillRect(50,150,30,30); this.ctx.beginPath(); this.ctx.moveTo(0,180); this.ctx.lineTo(600,180); this.ctx.strokeStyle='#474D4D'; this.ctx.stroke(); }
     };
 
-    // PACMAN (Infinite Levels + Speed Up)
+    // PACMAN
     const PacGame = {
         canvas: document.getElementById('pac-canvas'), ctx: document.getElementById('pac-canvas').getContext('2d'), grid: 16, pac: {}, dir: {}, nextDir: {}, ghosts: [], map: [], score: 0, running: false, interval: null, mouthOpen: true, baseSpeed: 120, level: 1,
         masterMap: [[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],[1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],[1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],[1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],[1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1],[1,0,1,1,0,1,0,1,1,1,1,1,0,1,0,1,1,0,1],[1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],[1,1,1,1,0,1,1,1,2,1,2,1,1,1,0,1,1,1,1],[1,1,1,1,0,1,2,2,2,2,2,2,2,1,0,1,1,1,1],[1,0,0,0,0,1,2,1,1,2,1,1,2,1,0,0,0,0,1],[1,1,1,1,0,1,2,1,2,2,2,1,2,1,0,1,1,1,1],[1,1,1,1,0,1,2,1,1,1,1,1,2,1,0,1,1,1,1],[1,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,1],[1,0,1,1,0,1,1,1,0,1,0,1,1,1,0,1,1,0,1],[1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1],[1,1,0,1,0,1,0,1,1,1,1,1,0,1,0,1,0,1,1],[1,0,0,0,0,1,0,0,0,1,0,0,0,1,0,0,0,0,1],[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1]],
@@ -481,7 +499,7 @@
         setupTouch: function(){let tx=0,ty=0; this.canvas.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY}; this.canvas.ontouchmove=e=>{e.preventDefault();}; this.canvas.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty; if(Math.abs(dx)>Math.abs(dy))this.nextDir=dx>0?{x:1,y:0}:{x:-1,y:0}; else this.nextDir=dy>0?{x:0,y:1}:{x:0,y:-1};};}
     };
 
-    // BREAKOUT (SMART PREDICTION + LEVELS)
+    // BREAKOUT
     const BreakoutGame = {
         c: document.getElementById('breakout-canvas'), ctx: document.getElementById('breakout-canvas').getContext('2d'), ball: {}, paddle: {}, bricks: [], running:false, score:0, interval:null, baseSpeed: 16, level: 1,
         start: function() {
@@ -526,7 +544,7 @@
         }
     };
 
-    // 2048 - 1-PLY AI
+    // 2048
     const Game2048 = {
         grid: [], score: 0,
         start: function() { this.grid = Array(16).fill(0); this.score=0; this.addNew(); this.addNew(); this.draw(); 
@@ -580,7 +598,7 @@
         }
     };
 
-    // PONG (SMART AI + RALLY SPEED UP)
+    // PONG
     const PongGame = {
         c: document.getElementById('pong-canvas'), ctx: document.getElementById('pong-canvas').getContext('2d'), ball: {}, p1: {}, p2: {}, score: [0,0], running: false, interval: null, baseSpeed: 16,
         start: function() {
@@ -617,7 +635,6 @@
             if(this.ball.y<0) { this.score[0]++; this.resetBall(); } if(this.ball.y>400) { this.score[1]++; this.resetBall(); }
             document.getElementById('pong-score').innerText = `${this.score[0]} - ${this.score[1]}`;
             if(this.score[0]>=5 || this.score[1]>=5) { this.stop(); Suite.showModal(this.score[0]>this.score[1]?"You Won!":"You Lost!", ""); }
-            
             this.ctx.fillStyle='#DD8566'; this.ctx.fillRect(this.p1.x, this.p1.y, this.p1.w, this.p1.h);
             this.ctx.fillStyle='#474D4D'; this.ctx.fillRect(this.p2.x, this.p2.y, this.p2.w, this.p2.h);
             this.ctx.beginPath(); this.ctx.arc(this.ball.x, this.ball.y, this.ball.r, 0, 6.28); this.ctx.fill();
