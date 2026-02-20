@@ -27,11 +27,11 @@
             font-family: 'Roboto', sans-serif; background-color: var(--bg); color: var(--text);
             margin: 0; display: flex; flex-direction: column; align-items: center; min-height: 100vh;
             padding: 20px; box-sizing: border-box; overflow-x: hidden; -webkit-tap-highlight-color: transparent;
-            overscroll-behavior: none;
+            overscroll-behavior: none; touch-action: pan-x pan-y;
         }
 
-        h1 { margin: 0 0 20px 0; letter-spacing: -0.5px; font-weight: 900; color: var(--text); text-transform: uppercase; }
-        .sub-title { color: #999; margin-bottom: 30px; font-weight: 500; }
+        h1 { margin: 0 0 20px 0; letter-spacing: -0.5px; font-weight: 900; color: var(--text); text-transform: uppercase; text-align: center; }
+        .sub-title { color: #999; margin-bottom: 30px; font-weight: 500; text-align: center; }
 
         .screen { display: none; width: 100%; max-width: 600px; flex-direction: column; align-items: center; animation: fadeIn 0.3s ease-out; }
         .active { display: flex; }
@@ -50,6 +50,7 @@
         .btn-primary:hover { background-color: #c07055; color: white; }
         
         .btn-ai { background-color: #474D4D; color: white; border-color: #474D4D; font-size: 0.9rem; padding: 8px 16px; min-width: auto; }
+        .btn-ai.on { background-color: #2ecc71; border-color: #2ecc71; }
 
         .back-btn { margin-top: 30px; background: transparent; border: none; color: #999; box-shadow: none; text-decoration: underline; font-weight: 400; }
         .back-btn:hover { background: transparent; color: var(--primary); transform: none; }
@@ -99,12 +100,9 @@
             font-size: 1.5rem; font-weight: bold; color: var(--text); width: 100%; height: 100%;
             transition: all 0.1s ease-in-out;
         }
-        .tile-2048[data-val="2"] { background: #eee; }
-        .tile-2048[data-val="4"] { background: #e0e0e0; }
-        .tile-2048[data-val="8"] { background: #FFDBCF; color: var(--text); }
-        .tile-2048[data-val="16"] { background: #FFB8A5; color: white; }
-        .tile-2048[data-val="32"] { background: #DD8566; color: white; }
-        .tile-2048[data-val="64"] { background: #C06040; color: white; }
+        .tile-2048[data-val="2"] { background: #eee; } .tile-2048[data-val="4"] { background: #e0e0e0; }
+        .tile-2048[data-val="8"] { background: #FFDBCF; color: var(--text); } .tile-2048[data-val="16"] { background: #FFB8A5; color: white; }
+        .tile-2048[data-val="32"] { background: #DD8566; color: white; } .tile-2048[data-val="64"] { background: #C06040; color: white; }
         .tile-2048[data-val="128"] { background: #A04020; color: white; font-size: 1.2rem; }
         
         /* TIC TAC TOE */
@@ -181,7 +179,7 @@
     <div id="screen-snake" class="screen">
         <h1>Snake</h1><div class="score-display" id="snake-score">0</div>
         <canvas id="snake-canvas" width="300" height="300"></canvas>
-        <div class="controls-row"><button class="btn-primary" onclick="SnakeGame.start()">Restart</button><button class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
+        <div class="controls-row"><button class="btn-primary" onclick="SnakeGame.start()">Restart</button><button id="btn-ai-snake" class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
         <button class="back-btn" onclick="Suite.goHome()">Exit to Hub</button>
     </div>
     
@@ -194,7 +192,7 @@
     <div id="screen-dino" class="screen">
         <h1>Dino Run</h1><div class="score-display" id="dino-score">0</div>
         <canvas id="dino-canvas" width="600" height="200"></canvas>
-        <div class="controls-row"><button id="dino-start-btn" class="btn-primary" onclick="DinoGame.start()">Start Run</button><button class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
+        <div class="controls-row"><button id="dino-start-btn" class="btn-primary" onclick="DinoGame.start()">Start Run</button><button id="btn-ai-dino" class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
         <button class="back-btn" onclick="Suite.goHome()">Exit to Hub</button>
     </div>
     
@@ -202,7 +200,7 @@
         <h1>Pac-Man Lite</h1><div class="score-display" id="pac-score">0</div>
         <div class="level-display" id="pac-level">Level 1</div>
         <canvas id="pac-canvas" width="300" height="300"></canvas>
-        <div class="controls-row"><button class="btn-primary" onclick="PacGame.start()">Restart</button><button class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
+        <div class="controls-row"><button class="btn-primary" onclick="PacGame.start()">Restart</button><button id="btn-ai-pacman" class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
         <button class="back-btn" onclick="Suite.goHome()">Exit to Hub</button>
     </div>
 
@@ -210,21 +208,21 @@
         <h1>Breakout</h1><div class="score-display" id="breakout-score">0</div>
         <div class="level-display" id="breakout-level">Level 1</div>
         <canvas id="breakout-canvas" width="300" height="400"></canvas>
-        <div class="controls-row"><button class="btn-primary" onclick="BreakoutGame.start()">Restart</button><button class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
+        <div class="controls-row"><button class="btn-primary" onclick="BreakoutGame.start()">Restart</button><button id="btn-ai-breakout" class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
         <button class="back-btn" onclick="Suite.goHome()">Exit to Hub</button>
     </div>
 
     <div id="screen-2048" class="screen">
         <h1>2048</h1><div class="score-display" id="2048-score">0</div>
         <div id="grid-2048"></div>
-        <div class="controls-row"><button class="btn-primary" onclick="Game2048.start()">Restart</button><button class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
+        <div class="controls-row"><button class="btn-primary" onclick="Game2048.start()">Restart</button><button id="btn-ai-2048" class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
         <button class="back-btn" onclick="Suite.goHome()">Exit to Hub</button>
     </div>
 
     <div id="screen-pong" class="screen">
         <h1>Pong</h1><div class="score-display" id="pong-score">0 - 0</div>
         <canvas id="pong-canvas" width="300" height="400"></canvas>
-        <div class="controls-row"><button class="btn-primary" onclick="PongGame.start()">Restart</button><button class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
+        <div class="controls-row"><button class="btn-primary" onclick="PongGame.start()">Restart</button><button id="btn-ai-pong" class="btn-ai" onclick="Suite.toggleAI()">🤖 Auto-Play</button></div>
         <button class="back-btn" onclick="Suite.goHome()">Exit to Hub</button>
     </div>
 
@@ -263,12 +261,13 @@
             document.getElementById('screen-hub').classList.add('active');
             if(Suite.activeGame && Suite.activeGame.stop) Suite.activeGame.stop();
             Suite.activeGame = null; Suite.aiMode = false;
+            document.querySelectorAll('.btn-ai').forEach(b => b.classList.remove('on'));
             if(TTT.peer) { TTT.peer.destroy(); TTT.peer = null; }
         },
         loadGame: (id) => {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById('screen-' + id).classList.add('active');
-            Suite.aiMode = false;
+            Suite.aiMode = false; document.querySelectorAll('.btn-ai').forEach(b => b.classList.remove('on'));
             if(id === 'snake') { Suite.activeGame = SnakeGame; SnakeGame.start(); }
             if(id === 'dino') { Suite.activeGame = DinoGame; DinoGame.start(); }
             if(id === 'pacman') { Suite.activeGame = PacGame; PacGame.start(); }
@@ -278,7 +277,10 @@
             if(id === 'ttt') { Suite.activeGame = TTT; TTT.showMenu(); }
             if(id === 'mines') { Suite.activeGame = null; MinesGame.init('easy'); }
         },
-        toggleAI: () => { Suite.aiMode = !Suite.aiMode; },
+        toggleAI: () => { 
+            Suite.aiMode = !Suite.aiMode; 
+            document.querySelectorAll('.btn-ai').forEach(b => Suite.aiMode ? b.classList.add('on') : b.classList.remove('on'));
+        },
         showModal: (title, msg) => { document.getElementById('modal-title').innerText = title; document.getElementById('modal-msg').innerHTML = msg; document.getElementById('rules-modal').style.display = 'flex'; }
     };
 
@@ -289,7 +291,7 @@
 
     // --- GAME MODULES ---
     
-    // SNAKE (EXPERT BFS + AREA MAXIMIZATION AI)
+    // SNAKE (EXPERT BFS + FLOOD FILL AREA SURVIVAL)
     const SnakeGame = {
         canvas: document.getElementById('snake-canvas'), ctx: document.getElementById('snake-canvas').getContext('2d'), grid: 15, snake: {}, apple: {}, score: 0, running: false, interval: null, baseSpeed: 100, currentSpeed: 100,
         start: function() { this.snake={x:150,y:150,dx:15,dy:0,cells:[],maxCells:4}; this.apple={x:60,y:60}; this.score=0; this.running=true; this.currentSpeed=100; document.getElementById('snake-score').innerText=0; this.restartTimer(); this.setupTouch(); },
@@ -314,8 +316,6 @@
             }
         },
         handleInput: function(e){ if(e.which===37&&this.snake.dx===0){this.snake.dx=-15;this.snake.dy=0;} else if(e.which===38&&this.snake.dy===0){this.snake.dy=-15;this.snake.dx=0;} else if(e.which===39&&this.snake.dx===0){this.snake.dx=15;this.snake.dy=0;} else if(e.which===40&&this.snake.dy===0){this.snake.dy=15;this.snake.dx=0;} },
-        
-        // --- EXPERT AREA-BASED AI ---
         aiMove: function() {
             const width = 20, height = 20;
             const toGrid = val => Math.floor(val / 15);
@@ -335,19 +335,14 @@
             const getArea = (startX, startY, walls) => {
                 if(!isSafe(startX, startY, walls)) return 0;
                 let q = [{x: startX, y: startY}];
-                let visited = new Set();
-                visited.add(startX+","+startY);
+                let visited = new Set(); visited.add(startX+","+startY);
                 let area = 0;
                 while(q.length > 0) {
-                    let curr = q.shift();
-                    area++;
+                    let curr = q.shift(); area++;
                     let dirs = [{x:0, y:-1}, {x:0, y:1}, {x:-1, y:0}, {x:1, y:0}];
                     for(let d of dirs) {
                         let nx = curr.x + d.x, ny = curr.y + d.y;
-                        if(isSafe(nx, ny, walls) && !visited.has(nx+","+ny)) {
-                            visited.add(nx+","+ny);
-                            q.push({x: nx, y: ny});
-                        }
+                        if(isSafe(nx, ny, walls) && !visited.has(nx+","+ny)) { visited.add(nx+","+ny); q.push({x: nx, y: ny}); }
                     }
                 }
                 return area;
@@ -371,57 +366,39 @@
             };
 
             let dirs = [{x:0, y:-1, d:{dx:0, dy:-15}}, {x:0, y:1, d:{dx:0, dy:15}}, {x:-1, y:0, d:{dx:-15, dy:0}}, {x:1, y:0, d:{dx:15, dy:0}}];
-            let maxArea = -1;
-            let bestSurvivalMove = null;
-            let moveAreas = {};
+            let maxArea = -1; let bestSurvivalMove = null; let moveAreas = {};
 
-            // 1. Evaluate safety of all adjacent moves
             for(let dir of dirs) {
                 let nx = hx + dir.x, ny = hy + dir.y;
                 if (isSafe(nx, ny, currentWalls)) {
-                    // Imagine making this move. The old head becomes a wall, the tail disappears.
                     let nextWalls = [{x:hx, y:hy}, ...currentWalls.slice(0, -1)];
-                    let area = getArea(nx, ny, nextWalls);
-                    moveAreas[dir.d.dx+","+dir.d.dy] = area;
-                    if (area > maxArea) {
-                        maxArea = area;
-                        bestSurvivalMove = dir.d;
-                    }
+                    let area = getArea(nx, ny, nextWalls); moveAreas[dir.d.dx+","+dir.d.dy] = area;
+                    if (area > maxArea) { maxArea = area; bestSurvivalMove = dir.d; }
                 }
             }
 
             let safeMove = null;
             let pathToApple = bfs(hx, hy, ax, ay, currentWalls);
 
-            // 2. Check if taking the path to the apple traps us
             if (pathToApple && pathToApple.length > 0) {
                 let nextMove = pathToApple[0];
                 let areaOfNextMove = moveAreas[nextMove.dx+","+nextMove.dy] || 0;
-                
-                // If taking the shortest path leaves us with the max possible area, 
-                // OR it leaves us with more room than our body size, it is safe.
-                if (areaOfNextMove === maxArea || areaOfNextMove > this.snake.cells.length) {
+                // If taking path leaves max area, or area is big enough to hold whole snake, it's safe.
+                if (areaOfNextMove === maxArea || areaOfNextMove > this.snake.cells.length + 2) {
                     safeMove = nextMove;
                 }
             }
 
-            // 3. Survival Mode: If the path to the apple is a trap, stall by taking the move with the most open space
-            if (!safeMove) {
-                safeMove = bestSurvivalMove;
-            }
-
-            if (safeMove) { 
-                this.snake.dx = safeMove.dx; 
-                this.snake.dy = safeMove.dy; 
-            }
+            if (!safeMove && bestSurvivalMove) safeMove = bestSurvivalMove;
+            if (safeMove) { this.snake.dx = safeMove.dx; this.snake.dy = safeMove.dy; }
         },
         setupTouch: function(){let tx=0,ty=0; this.canvas.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY}; this.canvas.ontouchmove=e=>{e.preventDefault();}; this.canvas.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty; if(Math.abs(dx)>Math.abs(dy)){if(dx>0&&this.snake.dx===0){this.snake.dx=15;this.snake.dy=0;}else if(this.snake.dx===0){this.snake.dx=-15;this.snake.dy=0;}}else{if(dy>0&&this.snake.dy===0){this.snake.dy=15;this.snake.dx=0;}else if(this.snake.dy===0){this.snake.dy=-15;this.snake.dx=0;}}};}
     };
 
-    // DINO
+    // DINO (SCALING SPEED FIX)
     const DinoGame = {
-        canvas: document.getElementById('dino-canvas'), ctx: document.getElementById('dino-canvas').getContext('2d'), running: false, dino: {x:50,y:150,w:30,h:30,dy:0,grounded:true}, obstacles: [], frame: 0, score: 0, baseSpeed: 20,
-        start: function() { this.running=true; this.score=0; this.frame=0; this.obstacles=[]; this.dino.y=150; this.dino.dy=0; document.getElementById('dino-start-btn').style.display='none'; this.restartTimer(); this.canvas.ontouchstart=(e)=>{e.preventDefault();this.jump()}; },
+        canvas: document.getElementById('dino-canvas'), ctx: document.getElementById('dino-canvas').getContext('2d'), running: false, dino: {x:50,y:150,w:30,h:30,dy:0,grounded:true}, obstacles: [], frame: 0, score: 0, baseSpeed: 20, gameSpeed: 6,
+        start: function() { this.running=true; this.score=0; this.frame=0; this.gameSpeed=6; this.obstacles=[]; this.dino.y=150; this.dino.dy=0; document.getElementById('dino-start-btn').style.display='none'; this.restartTimer(); this.canvas.ontouchstart=(e)=>{e.preventDefault();this.jump()}; },
         stop: function() { this.running=false; clearInterval(this.interval); document.getElementById('dino-start-btn').style.display='inline-block'; document.getElementById('dino-start-btn').innerText="Try Again"; },
         restartTimer: function() { if(this.interval) clearInterval(this.interval); this.interval=setInterval(()=>this.update(), this.baseSpeed/Suite.speedMult); },
         jump: function() { if(this.dino.grounded) { this.dino.dy=-12; this.dino.grounded=false; } },
@@ -432,9 +409,10 @@
             this.dino.dy+=0.8; this.dino.y+=this.dino.dy; if(this.dino.y>150){this.dino.y=150;this.dino.dy=0;this.dino.grounded=true;}
             this.ctx.fillStyle='#DD8566'; this.ctx.fillRect(this.dino.x, this.dino.y, this.dino.w, this.dino.h);
             this.ctx.beginPath(); this.ctx.moveTo(0,180); this.ctx.lineTo(600,180); this.ctx.strokeStyle='#474D4D'; this.ctx.stroke();
-            this.frame++; if(this.frame%90===0) this.obstacles.push({x:600,w:20,h:30+Math.random()*20});
+            this.frame++; 
+            if(this.frame%90===0) { this.obstacles.push({x:600,w:20,h:30+Math.random()*20}); this.gameSpeed += 0.1; } // Scaling speed
             this.ctx.fillStyle='#474D4D';
-            this.obstacles.forEach(o=>{ o.x-=6; this.ctx.fillRect(o.x,180-o.h,o.w,o.h); if(this.dino.x<o.x+o.w && this.dino.x+this.dino.w>o.x && this.dino.y<180 && this.dino.y+this.dino.h>180-o.h) {this.stop(); Suite.showModal("Crashed!", "Score: "+Math.floor(this.score));} });
+            this.obstacles.forEach(o=>{ o.x -= this.gameSpeed; this.ctx.fillRect(o.x,180-o.h,o.w,o.h); if(this.dino.x<o.x+o.w && this.dino.x+this.dino.w>o.x && this.dino.y<180 && this.dino.y+this.dino.h>180-o.h) {this.stop(); Suite.showModal("Crashed!", "Score: "+Math.floor(this.score));} });
             this.score+=0.1; document.getElementById('dino-score').innerText=Math.floor(this.score);
         },
         draw: function() { this.ctx.clearRect(0,0,600,200); this.ctx.fillStyle='#DD8566'; this.ctx.fillRect(50,150,30,30); this.ctx.beginPath(); this.ctx.moveTo(0,180); this.ctx.lineTo(600,180); this.ctx.strokeStyle='#474D4D'; this.ctx.stroke(); }
@@ -508,7 +486,7 @@
         setupTouch: function(){let tx=0,ty=0; this.canvas.ontouchstart=e=>{tx=e.touches[0].clientX;ty=e.touches[0].clientY}; this.canvas.ontouchmove=e=>{e.preventDefault();}; this.canvas.ontouchend=e=>{const dx=e.changedTouches[0].clientX-tx, dy=e.changedTouches[0].clientY-ty; if(Math.abs(dx)>Math.abs(dy))this.nextDir=dx>0?{x:1,y:0}:{x:-1,y:0}; else this.nextDir=dy>0?{x:0,y:1}:{x:0,y:-1};};}
     };
 
-    // BREAKOUT
+    // BREAKOUT (SMART PREDICTION WITH DEADZONE)
     const BreakoutGame = {
         c: document.getElementById('breakout-canvas'), ctx: document.getElementById('breakout-canvas').getContext('2d'), ball: {}, paddle: {}, bricks: [], running:false, score:0, interval:null, baseSpeed: 16, level: 1,
         start: function() {
@@ -535,12 +513,14 @@
                 let impactX = this.ball.x + (this.ball.dx / this.ball.dy) * (380 - this.ball.y);
                 if(impactX < 0) impactX = -impactX; if(impactX > 300) impactX = 600 - impactX;
                 let target = impactX - this.paddle.w/2;
-                if(this.paddle.x < target) this.paddle.x += 6; else if(this.paddle.x > target) this.paddle.x -= 6;
+                if(Math.abs(this.paddle.x - target) > 6) { // Deadzone to prevent jitter
+                    if(this.paddle.x < target) this.paddle.x += 6; else if(this.paddle.x > target) this.paddle.x -= 6;
+                }
             }
             this.ball.x+=this.ball.dx; this.ball.y+=this.ball.dy;
             if(this.ball.x<0 || this.ball.x>300) this.ball.dx=-this.ball.dx; if(this.ball.y<0) this.ball.dy=-this.ball.dy;
             else if(this.ball.y>400) { this.stop(); Suite.showModal("Game Over", `Score: ${this.score}`); }
-            if(this.ball.y>380 && this.ball.x>this.paddle.x && this.ball.x<this.paddle.x+this.paddle.w) this.ball.dy=-Math.abs(this.ball.dy);
+            if(this.ball.y+this.ball.r>380 && this.ball.x>this.paddle.x && this.ball.x<this.paddle.x+this.paddle.w) this.ball.dy=-Math.abs(this.ball.dy);
             this.bricks.forEach(b=>{ if(b.status===1 && this.ball.x>b.x && this.ball.x<b.x+50 && this.ball.y>b.y && this.ball.y<b.y+15) { this.ball.dy=-this.ball.dy; b.status=0; this.score+=10; document.getElementById('breakout-score').innerText=this.score; } });
             
             if(this.bricks.every(br=>br.status===0)) {
@@ -553,7 +533,7 @@
         }
     };
 
-    // 2048 
+    // 2048 (CORNER STRATEGY AI)
     const Game2048 = {
         grid: [], score: 0,
         start: function() { this.grid = Array(16).fill(0); this.score=0; this.addNew(); this.addNew(); this.draw(); 
@@ -594,7 +574,9 @@
                 let res = this.simulate(this.grid, i);
                 if(res.moved) {
                     let empties = res.grid.filter(v=>v===0).length;
-                    let h = res.score + (empties * 4); 
+                    let maxTile = Math.max(...res.grid);
+                    let cornerBonus = (res.grid[0]===maxTile || res.grid[3]===maxTile || res.grid[12]===maxTile || res.grid[15]===maxTile) ? 50 : 0;
+                    let h = res.score + (empties * 10) + cornerBonus; 
                     if(h > bestScore) { bestScore = h; bestDir = i; }
                 }
             }
@@ -607,7 +589,7 @@
         }
     };
 
-    // PONG
+    // PONG (SPEED CLAMPS & JITTER FIX)
     const PongGame = {
         c: document.getElementById('pong-canvas'), ctx: document.getElementById('pong-canvas').getContext('2d'), ball: {}, p1: {}, p2: {}, score: [0,0], running: false, interval: null, baseSpeed: 16,
         start: function() {
@@ -629,7 +611,9 @@
                 if((off===0 && this.ball.dy>0) || (off===1 && this.ball.dy<0)) {
                      targetX = this.ball.x + (this.ball.dx * 5); 
                 }
-                if(center < targetX - 5) p.x += 4; else if(center > targetX + 5) p.x -= 4;
+                if(Math.abs(center - targetX) > 5) {
+                    if(center < targetX) p.x += 4; else p.x -= 4;
+                }
             };
 
             track(this.p2, 1);
@@ -638,8 +622,17 @@
             this.ball.x+=this.ball.dx; this.ball.y+=this.ball.dy;
             if(this.ball.x<0 || this.ball.x>300) this.ball.dx=-this.ball.dx;
             
-            if(this.ball.y>370 && this.ball.x>this.p1.x && this.ball.x<this.p1.x+40) { this.ball.dy = -Math.abs(this.ball.dy); this.ball.dx *= 1.05; this.ball.dy *= 1.05; }
-            if(this.ball.y<30 && this.ball.x>this.p2.x && this.ball.x<this.p2.x+40) { this.ball.dy = Math.abs(this.ball.dy); this.ball.dx *= 1.05; this.ball.dy *= 1.05; }
+            // Collisions with Speed Clamps
+            if(this.ball.y>370 && this.ball.x>this.p1.x && this.ball.x<this.p1.x+40) { 
+                this.ball.dy = -Math.abs(this.ball.dy); 
+                this.ball.dx = Math.sign(this.ball.dx) * Math.min(Math.abs(this.ball.dx) * 1.05, 10); 
+                this.ball.dy = Math.sign(this.ball.dy) * Math.min(Math.abs(this.ball.dy) * 1.05, 10); 
+            }
+            if(this.ball.y<30 && this.ball.x>this.p2.x && this.ball.x<this.p2.x+40) { 
+                this.ball.dy = Math.abs(this.ball.dy); 
+                this.ball.dx = Math.sign(this.ball.dx) * Math.min(Math.abs(this.ball.dx) * 1.05, 10); 
+                this.ball.dy = Math.sign(this.ball.dy) * Math.min(Math.abs(this.ball.dy) * 1.05, 10); 
+            }
             
             if(this.ball.y<0) { this.score[0]++; this.resetBall(); } if(this.ball.y>400) { this.score[1]++; this.resetBall(); }
             document.getElementById('pong-score').innerText = `${this.score[0]} - ${this.score[1]}`;
@@ -650,11 +643,12 @@
         }
     };
 
-    // MINESWEEPER
+    // MINESWEEPER (FIRST CLICK SAFETY)
     const MinesGame = {
-        grid: [], rows: 10, cols: 10, mines: 15, gameOver: false,
+        grid: [], rows: 10, cols: 10, mines: 15, gameOver: false, firstClick: true,
         init: function(diff) {
-            this.rows = diff==='hard'?14:10; this.cols = diff==='hard'?14:10; this.mines = diff==='hard'?35:12; this.gameOver = false;
+            this.rows = diff==='hard'?14:10; this.cols = diff==='hard'?14:10; this.mines = diff==='hard'?35:12; 
+            this.gameOver = false; this.firstClick = true;
             const board = document.getElementById('ms-board'); board.style.gridTemplateColumns = `repeat(${this.cols}, 30px)`; board.innerHTML = '';
             this.grid = [];
             for(let r=0; r<this.rows; r++) {
@@ -667,8 +661,16 @@
                 }
                 this.grid.push(row);
             }
+        },
+        placeMines: function(firstR, firstC) {
             let minesPlaced = 0;
-            while(minesPlaced < this.mines) { let r = Math.floor(Math.random()*this.rows); let c = Math.floor(Math.random()*this.cols); if(!this.grid[r][c].mine) { this.grid[r][c].mine = true; minesPlaced++; } }
+            while(minesPlaced < this.mines) { 
+                let r = Math.floor(Math.random()*this.rows); let c = Math.floor(Math.random()*this.cols); 
+                // Don't place on first click OR its immediate neighbors
+                if(!this.grid[r][c].mine && (Math.abs(r-firstR) > 1 || Math.abs(c-firstC) > 1)) { 
+                    this.grid[r][c].mine = true; minesPlaced++; 
+                } 
+            }
             for(let r=0; r<this.rows; r++) for(let c=0; c<this.cols; c++) {
                 if(this.grid[r][c].mine) continue;
                 let count = 0;
@@ -678,6 +680,8 @@
         },
         click: function(r,c) {
             if(this.gameOver || this.grid[r][c].flagged || this.grid[r][c].revealed) return;
+            if(this.firstClick) { this.firstClick = false; this.placeMines(r,c); }
+            
             const cell = this.grid[r][c]; cell.revealed = true; cell.el.classList.add('revealed');
             if(cell.mine) { cell.el.classList.add('bomb'); cell.el.innerText = '💣'; this.gameOver = true; setTimeout(() => Suite.showModal("BOOM", "You hit a mine!"), 200); }
             else {
@@ -688,7 +692,7 @@
         flag: function(r,c) { if(this.gameOver || this.grid[r][c].revealed) return; const cell = this.grid[r][c]; cell.flagged = !cell.flagged; cell.el.innerText = cell.flagged ? '🚩' : ''; cell.el.classList.toggle('flag'); }
     };
 
-    // TIC TAC TOE (Fixed Filter)
+    // TIC TAC TOE (HEURISTIC ENGINE + ULTIMATE FIXES)
     const TTT = {
         mode: null, variant: null, peer: null, conn: null, difficulty: 'medium',
         board: [], turn: 'X', myPlayer: 'X', active: false, ultMacro: [], activeSubGrid: -1, scores: {p1:0, p2:0, draw:0}, animationsEnabled: true, nextStarter: 'X', currentStarter: 'X', aiTimer: null,
@@ -731,16 +735,12 @@
         checkWin3D: (b, p) => { for(let line of TTT.winLines3D) if(b[line[0]]===p && b[line[1]]===p && b[line[2]]===p) return line; return null; },
         handleUlt: (idx, p) => { const s = Math.floor(idx/9); const sub = TTT.board.slice(s*9, s*9+9); if(TTT.checkWin(sub, p) && !TTT.ultMacro[s]) { TTT.ultMacro[s] = p; document.getElementById(`sub-${s}`).classList.add(p==='X'?'won-x':'won-o'); } const next = idx % 9; TTT.activeSubGrid = (TTT.ultMacro[next] || TTT.board.slice(next*9, next*9+9).every(c=>c)) ? -1 : next; return TTT.checkWin(TTT.ultMacro, p); },
         highlightUlt: () => { for(let i=0;i<9;i++){ const el = document.getElementById(`sub-${i}`); el.classList.remove('active-zone'); if(!TTT.ultMacro[i] && (TTT.activeSubGrid===-1 || TTT.activeSubGrid===i)) el.classList.add('active-zone'); } },
+        
+        // --- AI LOGIC ENGINE ---
         botMove: () => {
             if(!TTT.active) return;
             let moves=[]; TTT.board.forEach((c,i)=>{ if(!c) moves.push(i) });
-            // THE FIX: Check if the sub-grid is already won
-            if(TTT.variant==='ultimate') {
-                moves = moves.filter(i => {
-                    const s = Math.floor(i/9); 
-                    return (TTT.activeSubGrid === -1 || TTT.activeSubGrid === s) && !TTT.ultMacro[s];
-                });
-            }
+            if(TTT.variant==='ultimate') moves=moves.filter(i=>{const s=Math.floor(i/9); return (TTT.activeSubGrid===-1||TTT.activeSubGrid===s) && !TTT.ultMacro[s];});
             if(moves.length===0) return;
             let chosen = moves[0];
             if (TTT.difficulty === 'easy') chosen = moves[Math.floor(Math.random() * moves.length)];
@@ -748,16 +748,67 @@
             else chosen = TTT.getBestMove(moves, TTT.turn);
             TTT.move(chosen, TTT.turn);
         },
+        minimax: (board, depth, isMax, p, opp) => {
+            if (TTT.checkWin(board, p)) return 10 - depth;
+            if (TTT.checkWin(board, opp)) return depth - 10;
+            if (board.every(c => c)) return 0;
+            if (isMax) {
+                let best = -Infinity;
+                for (let i=0; i<9; i++) { if (!board[i]) { board[i] = p; best = Math.max(best, TTT.minimax(board, depth+1, false, p, opp)); board[i] = null; } }
+                return best;
+            } else {
+                let best = Infinity;
+                for (let i=0; i<9; i++) { if (!board[i]) { board[i] = opp; best = Math.min(best, TTT.minimax(board, depth+1, true, p, opp)); board[i] = null; } }
+                return best;
+            }
+        },
         getBestMove: (available, p) => {
             let opp = p === 'X' ? 'O' : 'X';
+            
+            // NORMAL TTT: Unbeatable Minimax
+            if (TTT.variant === 'normal') {
+                let bestScore = -Infinity; let move = available[0];
+                for(let m of available) { TTT.board[m] = p; let score = TTT.minimax(TTT.board, 0, false, p, opp); TTT.board[m] = null; if(score > bestScore) { bestScore = score; move = m; } }
+                return move;
+            }
+            
+            // ULTIMATE TTT: Macro Heuristic Engine
             if (TTT.variant === 'ultimate') {
+                for (let m of available) { let temp = [...TTT.ultMacro]; let sub = TTT.board.slice(Math.floor(m/9)*9, Math.floor(m/9)*9+9); sub[m%9]=p; if(TTT.checkWin(sub, p)) { temp[Math.floor(m/9)]=p; if(TTT.checkWin(temp, p)) return m; } }
+                for (let m of available) { let temp = [...TTT.ultMacro]; let sub = TTT.board.slice(Math.floor(m/9)*9, Math.floor(m/9)*9+9); sub[m%9]=opp; if(TTT.checkWin(sub, opp)) { temp[Math.floor(m/9)]=opp; if(TTT.checkWin(temp, opp)) return m; } }
                 for (let m of available) { let sub = TTT.board.slice(Math.floor(m/9)*9, Math.floor(m/9)*9+9); sub[m%9] = p; if(TTT.checkWin(sub, p)) return m; }
                 for (let m of available) { let sub = TTT.board.slice(Math.floor(m/9)*9, Math.floor(m/9)*9+9); sub[m%9] = opp; if(TTT.checkWin(sub, opp)) return m; }
-                return available[Math.floor(Math.random() * available.length)];
+                
+                let bestScore = -Infinity; let bestMoves = [];
+                for (let m of available) {
+                    let score = 0; let localIdx = m % 9;
+                    if (localIdx === 4) score += 5; // Local center bonus
+                    let nextGrid = localIdx;
+                    // Penalty for sending opponent to an open grid or already won grid
+                    if (TTT.ultMacro[nextGrid] || TTT.board.slice(nextGrid*9, nextGrid*9+9).every(c=>c)) score -= 50; 
+                    if (score > bestScore) { bestScore = score; bestMoves = [m]; } else if (score === bestScore) { bestMoves.push(m); }
+                }
+                return bestMoves[Math.floor(Math.random() * bestMoves.length)];
             }
-            for (let m of available) { let temp = [...TTT.board]; temp[m] = p; if ((TTT.variant==='3d'?TTT.checkWin3D(temp,p):TTT.checkWin(temp,p))) return m; }
-            for (let m of available) { let temp = [...TTT.board]; temp[m] = opp; if ((TTT.variant==='3d'?TTT.checkWin3D(temp,opp):TTT.checkWin(temp,opp))) return m; }
-            return available[Math.floor(Math.random() * available.length)];
+            
+            // 3D TTT: Heuristic Engine
+            for (let m of available) { let temp = [...TTT.board]; temp[m] = p; if (TTT.checkWin3D(temp,p)) return m; }
+            for (let m of available) { let temp = [...TTT.board]; temp[m] = opp; if (TTT.checkWin3D(temp,opp)) return m; }
+            
+            let bestScore = -Infinity; let bestMoves = [];
+            for (let m of available) {
+                let score = 0;
+                if (m === 13) score += 20; // 3D Center
+                for (let line of TTT.winLines3D) {
+                    if (line.includes(m)) {
+                        let pCount = 0, oppCount = 0;
+                        for (let idx of line) { if (TTT.board[idx] === p) pCount++; else if (TTT.board[idx] === opp) oppCount++; }
+                        if (pCount > 0 && oppCount === 0) score += Math.pow(10, pCount); // Prioritize forks
+                    }
+                }
+                if (score > bestScore) { bestScore = score; bestMoves = [m]; } else if (score === bestScore) { bestMoves.push(m); }
+            }
+            return bestMoves[Math.floor(Math.random() * bestMoves.length)];
         },
         end: (res, winLine) => {
             TTT.active = false; document.getElementById('ttt-turn').innerText = res==='draw'?"Draw!":`${res} Wins!`;
@@ -765,11 +816,8 @@
             document.getElementById('p1-score').innerText = `P1: ${TTT.scores.p1}`; document.getElementById('p2-score').innerText = `P2: ${TTT.scores.p2}`;
             if(res !== 'draw' && winLine) { if(TTT.animationsEnabled && TTT.variant==='3d') { document.getElementById('board-3d').classList.add('stacked'); setTimeout(() => { TTT.drawWinLine(winLine); }, 1200); } else if(TTT.animationsEnabled) { TTT.drawWinLine(winLine); } }
             
-            if (TTT.mode === 'ai-vs-ai') {
-                TTT.aiTimer = setTimeout(() => { if (Suite.activeGame === TTT) TTT.restart(); }, 2000 / Suite.speedMult);
-            } else {
-                setTimeout(() => document.getElementById('ttt-restart').style.display='block', 800);
-            }
+            if (TTT.mode === 'ai-vs-ai') { TTT.aiTimer = setTimeout(() => { if (Suite.activeGame === TTT) TTT.restart(); }, 2000 / Suite.speedMult); } 
+            else { setTimeout(() => document.getElementById('ttt-restart').style.display='block', 800); }
         },
         drawWinLine: (indices) => {
             if(!indices || indices.length===0 || TTT.variant==='ultimate') return;
